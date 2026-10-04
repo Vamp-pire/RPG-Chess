@@ -795,8 +795,8 @@ export class Battle {
     await lunge(a.ent, [u.x, u.y], () => { sfx('hit'); dead = this.dmgEnemy(u, dmg, melee ? 2 : 1, melee); });
     if (dead) {
       const to: Vec = [u.x, u.y];
-      // 폰이 잡는 방식(바로 아래 대각선에서 붙어 치기)이었나 — 숨은 엔딩 단서용
-      this.pawnCapture = isHero && melee && Math.abs(u.x - a.x) === 1 && a.y === u.y + 1;
+      // 폰이 잡는 방식(바로 아래 대각선 칸에서의 일격, 주인공·동료 모두)이었나 — 숨은 엔딩 단서용
+      this.pawnCapture = Math.abs(u.x - a.x) === 1 && a.y === u.y + 1;
       await this.kill(u, false, how);
       this.pawnCapture = false;
       if (this.free(to[0], to[1])) {
