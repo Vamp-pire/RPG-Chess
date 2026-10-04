@@ -1,6 +1,7 @@
 // 난이도: 보상·편의·적 세기, 그리고 '안 맞는 사이클'을 깨는 장치(따라붙기·협공·흐린 예고·기습·초읽기)의
 // 빈도와 존재 여부가 함께 바뀐다. (협공은 역효과가 많아 뺐다) 화면에는 중요한 일부(shown)만 알려 준다.
-export type Diff = 'story' | 'easy' | 'normal' | 'hard' | 'master';
+/** story(입문)는 선택지에서 뺐다 — 옛 저장을 위해 값만 남긴다 */
+export type Diff = 'story' | 'easy' | 'normal' | 'hard' | 'master' | 'champion';
 
 export interface DiffDef {
   name: string;
@@ -49,7 +50,8 @@ export interface DiffDef {
   terrain: number;
 }
 
-// 전투 세기는 한 칸씩 올렸다 (베타 테스터: 어려움을 보통으로, 보통을 쉬움으로). 보상·편의는 이름 그대로
+// 전투 세기: 한 칸씩 올렸다가(베타 테스터) 다시 한 칸의 약 80%만큼 내렸다(2026-10-04). 보상·편의는 이름 그대로.
+// 입문(story)은 선택지에서 빼고(옛 저장용으로만 남김), 그랜드마스터 위에 세계 챔피언을 더했다.
 export const DIFFS: Record<Diff, DiffDef> = {
   story: {
     name: '입문',
@@ -59,30 +61,36 @@ export const DIFFS: Record<Diff, DiffDef> = {
   },
   easy: {
     name: '쉬움',
-    shown: ['장비를 재련하면 재료를 모두 돌려받아요', '전투가 아직 낯설다면 여기서'],
-    gold: 0.6, rare: 0.5, extra: 0, drop: 0.85, loss: 0.25, refund: 1, willEachBattle: true, bossHp: 0, mobHp: 0, fleeCost: 0, shiny: 0.05,
-    chase: true, breath: 3, ambush: 0.05, blur: 0.1, clock: 32, aware: 0.4, haste: 0.09, retaliate: 0.08, terrain: 1,
+    shown: ['적이 약하고, 장비를 재련하면 재료를 모두 돌려받아요', '이야기를 편하게 즐기고 싶다면 여기서'],
+    gold: 0.6, rare: 0.5, extra: 0, drop: 0.85, loss: 0.25, refund: 1, willEachBattle: true, bossHp: -2, mobHp: -1, fleeCost: 0, shiny: 0.05,
+    chase: false, breath: 2, ambush: 0.01, blur: 0.02, clock: 0, aware: 0.08, haste: 0.02, retaliate: 0.02, terrain: 0,
   },
   normal: {
     name: '보통',
     shown: ['장비를 재련하면 재료를 절반 돌려받아요', '처음 하는 분께 추천해요'],
-    gold: 1, rare: 0.8, extra: 0, drop: 0.8, loss: 0.5, refund: 0.5, willEachBattle: false, bossHp: 1, mobHp: 0, fleeCost: 1, shiny: 0.07,
-    chase: true, breath: 3, ambush: 0.09, blur: 0.25, clock: 24, aware: 0.65, haste: 0.13, retaliate: 0.14, terrain: 2,
+    gold: 1, rare: 0.8, extra: 0, drop: 0.8, loss: 0.5, refund: 0.5, willEachBattle: false, bossHp: 0, mobHp: 0, fleeCost: 1, shiny: 0.07,
+    chase: true, breath: 3, ambush: 0.06, blur: 0.13, clock: 30, aware: 0.45, haste: 0.1, retaliate: 0.09, terrain: 1,
   },
   hard: {
     name: '어려움',
     shown: ['재련할 수 없어요', '예고 없이 덮치는 적이 있어요', '보상이 훨씬 많아요'],
-    gold: 1.5, rare: 1.6, extra: 0.22, drop: 0.8, loss: 1, refund: 0, willEachBattle: false, bossHp: 2, mobHp: 1, fleeCost: 1, shiny: 0.1,
-    chase: true, breath: 4, ambush: 0.15, blur: 0.4, clock: 18, aware: 0.9, haste: 0.18, retaliate: 0.22, terrain: 3,
+    gold: 1.5, rare: 1.6, extra: 0.22, drop: 0.8, loss: 1, refund: 0, willEachBattle: false, bossHp: 1, mobHp: 0, fleeCost: 1, shiny: 0.1,
+    chase: true, breath: 3, ambush: 0.1, blur: 0.28, clock: 23, aware: 0.7, haste: 0.14, retaliate: 0.16, terrain: 2,
   },
   master: {
     name: '그랜드마스터',
-    shown: ['적이 내 움직임을 읽어요', '전투를 오래 끌면 적이 사나워져요', '보상이 가장 많아요'],
-    gold: 2, rare: 2, extra: 0.32, drop: 0.8, loss: 1, refund: 0, willEachBattle: false, bossHp: 3, mobHp: 1, fleeCost: 2, shiny: 0.12,
-    chase: true, breath: 5, ambush: 0.22, blur: 0.55, clock: 14, aware: 1, haste: 0.25, retaliate: 0.3, terrain: 3,
+    shown: ['적이 내 움직임을 읽어요', '전투를 오래 끌면 적이 사나워져요', '보상이 아주 많아요'],
+    gold: 2, rare: 2, extra: 0.32, drop: 0.8, loss: 1, refund: 0, willEachBattle: false, bossHp: 2, mobHp: 1, fleeCost: 2, shiny: 0.12,
+    chase: true, breath: 4, ambush: 0.16, blur: 0.43, clock: 17, aware: 0.92, haste: 0.19, retaliate: 0.24, terrain: 3,
+  },
+  champion: {
+    name: '세계 챔피언',
+    shown: ['그랜드마스터보다 한 단계 더 사나운 판', '적이 더 질기고, 더 자주 기습하고, 더 오래 버텨요', '보상이 가장 많아요'],
+    gold: 2.5, rare: 2.4, extra: 0.4, drop: 0.8, loss: 1, refund: 0, willEachBattle: false, bossHp: 4, mobHp: 2, fleeCost: 3, shiny: 0.14,
+    chase: true, breath: 6, ambush: 0.29, blur: 0.7, clock: 11, aware: 1, haste: 0.32, retaliate: 0.38, terrain: 4,
   },
 };
 
-export const DIFF_ORDER: Diff[] = ['story', 'easy', 'normal', 'hard', 'master'];
+export const DIFF_ORDER: Diff[] = ['easy', 'normal', 'hard', 'master', 'champion'];
 /** 어려움 이상 (업적 등) */
-export const isHardPlus = (d: Diff) => d === 'hard' || d === 'master';
+export const isHardPlus = (d: Diff) => d === 'hard' || d === 'master' || d === 'champion';

@@ -289,7 +289,7 @@ export function openSettings(onChange: () => void, inGame = false) {
   if (inGame && G) {
     const cur = DIFFS[G.diff];
     const box = h('div', { class: 'set-row diff-row' }, h('span', {}, h('b', {}, `난이도: ${cur.name}`), h('small', {}, '낮출 수는 있지만 다시 올릴 수는 없어요.')));
-    for (const id of DIFF_ORDER.slice(0, DIFF_ORDER.indexOf(G.diff))) {
+    for (const id of DIFF_ORDER.slice(0, Math.max(0, DIFF_ORDER.indexOf(G.diff)))) {
       const b = h('button', { class: 'btn small' }, `${DIFFS[id].name}(으)로 낮추기`);
       b.addEventListener('click', () => {
         if (!confirm(`난이도를 ${DIFFS[id].name}(으)로 낮출까요? 다시 올릴 수 없어요.`)) return;
