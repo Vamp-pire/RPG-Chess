@@ -326,12 +326,16 @@ export function openJobSelect(onPick: (j: JobId) => void) {
   root.append(cols, h('p', { class: 'hint' }, '직업은 전투보다 모험을 바꾼다: 대화·퀘스트 선택지, 상호작용, 보상. 중립 직업만 나중에 다시 고를 수 있다.'));
 }
 
-/** line: 여러 수 퍼즐의 수순 ('c4g8' 같은 출발·도착 칸, 내 수·상대 응수 번갈아). 없으면 from→to 한 수 */
+/**
+ * line: 여러 수 퍼즐의 수순 ('c4g8' 같은 출발·도착 칸, 내 수·상대 응수 번갈아). 없으면 from→to 한 수.
+ * 내 수 칸에는 '|'로 다른 정답을 더 적을 수 있다 ('e1d2|e1c1'). 끝에 '*'가 붙은 수는 '이기는 수지만 기보와 다른 수'
+ * — 틀린 것으로 치지 않고 다시 생각해 보게만 한다.
+ */
 export interface PuzzleDef { title: string; text: string; pos: Record<string, string>; from: string; to: string; kind?: 'mate' | 'open'; line?: string[] }
 
 /** 메이트까지 내가 둘 수 (한 수 퍼즐이면 1) */
 export const puzzleMoves = (pz: PuzzleDef) => Math.ceil((pz.line?.length ?? 1) / 2);
-const KN = ['한', '두', '세', '네', '다섯'];
+const KN = ['한', '두', '세', '네', '다섯', '여섯', '일곱', '여덟'];
 export const puzzleMovesLabel = (pz: PuzzleDef) => `${KN[puzzleMoves(pz) - 1] ?? puzzleMoves(pz)} 수`;
 
 export const PUZZLES: Record<string, PuzzleDef> = {
@@ -358,9 +362,17 @@ export function openPuzzle(pz: PuzzleDef, onSolved: () => void) {
   const play = (mv: string) => {
     const f = mv.slice(0, 2);
     const t = mv.slice(2, 4);
+    // 캐슬링: 킹이 두 칸 옆으로 가면 룩도 옮긴다
+    if (pos[f]?.[1] === 'k' && Math.abs(f.charCodeAt(0) - t.charCodeAt(0)) === 2) {
+      const r = f[1];
+      const [rf, rt] = t[0] === 'c' ? ['a', 'd'] : ['h', 'f'];
+      pos[rt + r] = pos[rf + r];
+      delete pos[rf + r];
+    }
     pos[t] = pos[f];
     delete pos[f];
   };
+  const opts = (i: number) => line[i].split('|');
   const board = h('div', { class: 'pz-board' });
   root.append(msg, board);
   const files = 'abcdefgh';
@@ -374,10 +386,18 @@ export function openPuzzle(pz: PuzzleDef, onSolved: () => void) {
         cell.addEventListener('click', () => {
           if (busy) return;
           if (selSq && selSq !== sq && !(pos[sq] && pos[sq][0] === 'w')) {
-            const ok = selSq + sq === line[step];
+            const mv = selSq + sq;
+            const ok = opts(step).includes(mv);
+            if (opts(step).includes(mv + '*')) {
+              // 이기는 수지만 기보 속 명인의 수가 아니다: 틀린 것으로 치지 않는다
+              msg.textContent = '"그 수로도 이길 수는 있지. 하지만 그날의 명인은 다른 수를 두었네. 다시 생각해 보게."';
+              selSq = null;
+              render();
+              return;
+            }
             if (ok && step + 1 < line.length) {
               // 맞는 수: 두고, 잠시 뒤 상대가 정해진 수로 받는다
-              play(line[step]);
+              play(mv);
               step++;
               selSq = null;
               busy = true;
@@ -393,7 +413,7 @@ export function openPuzzle(pz: PuzzleDef, onSolved: () => void) {
               return;
             }
             if (ok) {
-              play(line[step]);
+              play(mv);
               selSq = null;
               render();
               msg.textContent = pz.kind === 'open' ? '정답! 옛 기보 그대로의 수다.' : pz.kind === 'mate' ? '체크메이트! 기보사가 손뼉을 친다.' : '체크메이트! 돌판이 스르륵 열리며 무언가가 굴러 나온다.';
