@@ -182,6 +182,67 @@ export function takeBetaGift(): boolean {
   }
 }
 
+// ---------- 백업 되살리기 ----------
+// 저장 세대를 한때 올렸다가 되돌린 경우처럼, 지금 세대인데도 브라우저에 백업(cf_beta_backup)만 남은 사람의 저장을 되살린다.
+// 백업 세대가 지금 SAVE_GEN 보다 낮으면(= 정식 출시 때의 정상 초기화) 되살리지 않는다. 한 번 처리하면 다시 묻지 않는다.
+type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+interface Backup { gen: number; at: number; data: Record<string, string> }
+const DONE_KEY = 'cf_backup_done';
+
+function readBackup(store: Store): Backup | null {
+  try {
+    if (store.getItem(DONE_KEY)) return null;
+    const raw = store.getItem('cf_beta_backup');
+    if (!raw) return null;
+    const b = JSON.parse(raw) as Backup;
+    if (!b?.data || !SAVE_KEYS.some((k) => k !== 'cf_slot' && b.data[k] != null)) return null;
+    return Number(b.gen) >= SAVE_GEN ? b : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 되살릴 백업이 있는가: 'none' 없음 / 'empty' 지금 저장이 비어 있어 바로 되살려도 됨 / 'conflict' 지금 진행이 있어 물어봐야 함 */
+export function backupState(store: Store = localStorage): 'none' | 'empty' | 'conflict' {
+  try {
+    if (!readBackup(store)) return 'none';
+    return SAVE_KEYS.some((k) => k !== 'cf_slot' && store.getItem(k) !== null) ? 'conflict' : 'empty';
+  } catch {
+    return 'none';
+  }
+}
+
+/** 백업을 되살린다. 지금 저장은 cf_restore_prev 에 남겨 둔다. 되살렸으면 true */
+export function restoreBackup(store: Store = localStorage): boolean {
+  try {
+    const b = readBackup(store);
+    if (!b) return false;
+    const prev: Record<string, string> = {};
+    for (const k of SAVE_KEYS) {
+      const v = store.getItem(k);
+      if (v !== null) prev[k] = v;
+      store.removeItem(k);
+    }
+    if (Object.keys(prev).length) store.setItem('cf_restore_prev', JSON.stringify({ at: Date.now(), data: prev }));
+    for (const [k, v] of Object.entries(b.data)) if (SAVE_KEYS.includes(k)) store.setItem(k, v);
+    store.setItem(GEN_KEY, String(SAVE_GEN));
+    // 초기화 때 걸어 둔 베타 선물은 저장을 되찾았으니 거둔다 (나중에 정식 출시로 초기화되면 다시 걸린다)
+    if (store.getItem('cf_beta_gift') === 'pending') store.removeItem('cf_beta_gift');
+    store.setItem(DONE_KEY, '1');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** 되살리지 않고 지금 진행을 유지한다 (다시 묻지 않음) */
+export function keepCurrentSave(store: Store = localStorage) {
+  try {
+    store.setItem(GEN_KEY, String(SAVE_GEN));
+    store.setItem(DONE_KEY, '1');
+  } catch { /* */ }
+}
+
 // ---------- 새 버전 안내 ----------
 const SEEN_KEY = 'cf_seen_ver';
 /** 이 버전의 패치 노트를 아직 안 봤는가. 처음 온 사람은 보여 주지 않고 본 것으로 친다 */
