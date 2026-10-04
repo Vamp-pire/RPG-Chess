@@ -31,6 +31,7 @@ import { initAchievements, openAchievements, syncAchievements } from './achievem
 import { Battle, BattleResult } from './battle';
 import { Explore, RMob, RObj, exitOpen } from './explore';
 import { talk } from './npcs';
+import { eggGold, eggKey, eggLose, eggShopOpen, eggTime, eggWall } from './eggs';
 import { QUESTS, craftCount, guideFor, rewardHint, initQuestHooks, progressText, q, qComplete, qOn, qReady, qStart, qst, trackedQuest } from './quests';
 
 type Mode = 'title' | 'explore' | 'battle';
@@ -112,6 +113,7 @@ export class App {
   }
 
   refreshAll() {
+    eggGold();
     save();
     this.renderSide();
     if (this.mode === 'explore') this.explore.refresh();
@@ -133,6 +135,8 @@ export class App {
       toast('…어디선가 누군가 e4를 두었다. 기보가 살짝 떨린다.', 'rare');
       emit('e4');
     }
+    // 여백의 낙서 (새 이스터 에그) — 위의 e4와는 따로 센다
+    eggKey(e.key, this.mode);
     // 조작은 전부 화면의 버튼·칸으로 한다 (키보드 단축키는 Esc만)
   }
 
@@ -227,6 +231,7 @@ export class App {
 
   async begin(fresh: boolean) {
     document.body.classList.remove('at-title');
+    setTimeout(() => eggTime(), 1500);
     this.mode = 'explore';
     this.explore.enter(G.area);
     // 옛 저장: 새로 생긴 이야기 줄기를 이어 준다
@@ -565,6 +570,7 @@ export class App {
     }
     if (r === 'lose') {
       sfx('lose');
+      eggLose(b?.enc.enemies.map((e) => e.m) ?? []);
       const lost: [MatId, number][] = [];
       for (const [id, n] of Object.entries(G.bag) as [MatId, number][]) {
         if (MATS[id].key) continue;
@@ -791,6 +797,7 @@ export class App {
         this.tip('forge', '재료마다 움직임 조각과 특성이 숨어 있어요. 한 재료가 30% 이상이면 그 움직임이, 40% 이상이면 특성이 붙어요.', { act: '💡 추천 조합의 [넣기]를 누른 뒤 [바로 제작]을 눌러 보세요', el: '.recs .rec .btn' });
         return;
       case 'shop':
+        eggShopOpen();
         openShop(refresh, d.id === 'peddler');
         return;
       case 'board':
@@ -902,6 +909,7 @@ export class App {
   }
 
   recordWall() {
+    eggWall();
     const choose = () => openJobSelect((j) => {
       const first = !G.job;
       G.job = j;

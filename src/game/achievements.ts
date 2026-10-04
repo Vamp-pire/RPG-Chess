@@ -2,6 +2,7 @@
 // 마인크래프트 발전 과제처럼 분류(탭) · 틀(일반/목표/도전) · 앞 업적(parent)으로 나무 모양을 이룬다.
 // secret은 달성 전까지 ???로 보이고, 앞 업적을 못 깬 업적은 이름만 가려진다.
 import { isHardPlus } from '../core/difficulty';
+import { EGG_TOTAL } from './eggs';
 import { sfx } from '../core/sfx';
 import { G, on, save } from '../core/state';
 import { SLOTS } from '../core/items';
@@ -203,6 +204,8 @@ export const ACHS: Ach[] = [
   { id: 's_rewrite', cat: 'secret', frame: 'challenge', name: '다시 쓰인 기보', desc: '숨겨진 끝을 적었다.', secret: true, ev: 'ending', test: (e) => e === 'rewrite' },
   { id: 's_rebirth3', cat: 'secret', frame: 'challenge', name: '윤회하는 폰', desc: '세 번 환생했다.', secret: true, ev: 'rebirth', test: (n) => (n as number) >= 3 },
   { id: 's_daily7', cat: 'secret', name: '매일 한 수', desc: '오늘의 기보를 7일 연속 해냈다.', secret: true, ev: 'daily', test: (n) => (n as number) >= 7 },
+  { id: 's_egg3', cat: 'secret', name: '여백을 읽는 자', desc: '여백의 낙서를 세 개 찾았다.', secret: true, ev: 'egg', test: (n) => (n as number) >= 3 },
+  { id: 's_egg_all', cat: 'secret', frame: 'challenge', name: '낙서의 주인', desc: '여백의 낙서를 모두 찾았다.', secret: true, ev: 'egg', test: (n) => (n as number) >= EGG_TOTAL },
   { id: 's_poor', cat: 'secret', name: '빈털터리 용사', desc: '골드 0으로 전투에서 이겼다.', secret: true, ev: 'battleWin', test: () => G.gold <= 4 },
 ];
 

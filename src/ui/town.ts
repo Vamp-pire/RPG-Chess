@@ -12,6 +12,7 @@ import { pieceSrc } from '../render/sprites';
 import { clearCoach, dialog, h, modal, toast } from './dom';
 import { DIFFS } from '../core/difficulty';
 import { invGrid, matIcon, statsView } from './forge';
+import { eggShopBought } from '../game/eggs';
 
 const BASIC: MatId[] = ['gel', 'tooth', 'wing', 'moss', 'thorn', 'fiber'];
 
@@ -51,7 +52,7 @@ export function openShop(onChange: () => void, peddler = false) {
     for (const id of peddler ? PEDDLER : BASIC) {
       const p = buyOf(id);
       const b = h('button', { class: 'btn small', disabled: G.gold < p }, `${p}G`);
-      b.addEventListener('click', () => { G.gold -= p; addBag(id, 1); emit('buy'); sfx('coin'); save(); render(); });
+      b.addEventListener('click', () => { G.gold -= p; addBag(id, 1); emit('buy'); eggShopBought(); sfx('coin'); save(); render(); });
       buy.append(h('div', { class: 'shop-row' }, matIcon(id, 24), h('span', {}, MATS[id].name), h('span', { class: 'muted' }, `보유 ${matHave(id)}`), b));
     }
     if (!peddler) {

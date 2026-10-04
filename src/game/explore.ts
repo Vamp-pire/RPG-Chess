@@ -4,6 +4,7 @@ import { G, hasJob, loadout, matHave } from '../core/state';
 import { AREAS, AreaDef, AreaId, Exit, FixedMob, Mover, ObjDef, SIDE_NAME, Side, onSide, pickParty } from '../data/areas';
 import { sfx } from '../core/sfx';
 import { eventDef, rollEvent } from './events';
+import { eggStep } from './eggs';
 import { MobId } from '../data/mobs';
 import { PIECES } from '../data/pieces';
 import { Edge, Ent, Mark, Scene, mkEnt } from '../render/board';
@@ -331,7 +332,9 @@ export class Explore {
   private async step(to: Vec): Promise<'ok' | 'battle' | 'stop'> {
     sfx('step');
     await moveEnt(this.pEnt, to);
+    const from: Vec = [G.pos[0], G.pos[1]];
     G.pos = [to[0], to[1]];
+    eggStep(G.area, from, to);
     clearCoach('move');
     const wo = this.objAt(to[0], to[1]);
     if (wo && wo.def.walk) {
