@@ -1,4 +1,5 @@
 import './style.css';
+import { inject } from '@vercel/analytics';
 import { applyTextScale } from './core/prefs';
 import { App } from './game/app';
 import { fx } from './render/fx';
@@ -11,6 +12,9 @@ import { askRestore, showResetNotice, showRestoredNotice, showWhatsNew } from '.
 import { slotInfo, SLOTS_N } from './core/state';
 
 applyTextScale();
+
+// Vercel Web Analytics: 방문자·페이지뷰 집계 (Vercel에 배포된 주소에서만 동작, 개발 서버에서는 콘솔에만 찍힘)
+inject();
 
 // 베타 → 정식: 저장 세대가 바뀌었으면 (백업 후) 초기화. 앱이 저장을 읽기 전에 해야 한다
 const wiped = checkSaveGen();
