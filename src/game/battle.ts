@@ -15,6 +15,7 @@ import { DIFFS } from '../core/difficulty';
 import { sfx } from '../core/sfx';
 import { perk } from './rewards';
 import { runRule } from './runrules';
+import { bossFell } from './throne';
 
 type Intent =
   | { t: 'attack'; sq: Vec[]; hidden?: boolean; blur?: boolean }
@@ -794,7 +795,10 @@ export class Battle {
     await lunge(a.ent, [u.x, u.y], () => { sfx('hit'); dead = this.dmgEnemy(u, dmg, melee ? 2 : 1, melee); });
     if (dead) {
       const to: Vec = [u.x, u.y];
+      // 폰이 잡는 방식(바로 아래 대각선에서 붙어 치기)이었나 — 숨은 엔딩 단서용
+      this.pawnCapture = isHero && melee && Math.abs(u.x - a.x) === 1 && a.y === u.y + 1;
       await this.kill(u, false, how);
+      this.pawnCapture = false;
       if (this.free(to[0], to[1])) {
         await moveEnt(a.ent, to);
         a.x = to[0];
@@ -869,6 +873,9 @@ export class Battle {
     return u.hp <= 0;
   }
 
+  /** 지금 처리 중인 처치가 '폰이 잡는 방식'의 일격인가 (allyAttack이 kill 직전에 세운다) */
+  private pawnCapture = false;
+
   private async kill(u: BUnit, noDrop = false, how = 'other') {
     u.hp = 0;
     if (['melee', 'knight', 'shot'].includes(how)) {
@@ -898,6 +905,10 @@ export class Battle {
       return;
     }
     if (u.mob && !noDrop) {
+      // 숨은 엔딩 「다음 보스」의 단서: 보스를 폰답게 끝냈는가
+      if (u.mob === 'strawking') bossFell('straw', this.hero.hp > 0 && this.tileAt(this.hero.x, this.hero.y) === 'throne');
+      if (u.mob === 'misqueen') bossFell('queen', u.y === 0);
+      if (u.mob === 'frozenking') bossFell('king', this.pawnCapture);
       this.kills.push(u.mob);
       this.hows.push({ mob: u.mob, how });
       if (u.shiny) this.shinyKills.push(u.mob);

@@ -5,6 +5,7 @@ import { G, align, log } from '../core/state';
 import { PIECES } from '../data/pieces';
 import { cutin, dialog, h, lockStory, modal } from '../ui/dom';
 import { fx } from '../render/fx';
+import { seenEnding } from './throne';
 
 /** 주인공 말 이름 (폰·나이트·비숍) — 이야기 문장의 {P} */
 export const pw = () => (G?.piece === 'pawn' || !G ? '폰' : PIECES[G.piece].name.split(' ')[0]);
@@ -154,11 +155,22 @@ const DARK_LAST: Record<StoryBoss, string> = {
   king: '무서우면 비켜. 끝은 내가 낼 테니까.',
   author: '쥘 만한지는 내가 정해.',
 };
+/** 「다음 보스」 엔딩을 본 뒤의 밀짚왕: 옥좌에 남았던 '나'가 다음 폰에게 하는 말 */
+const THRONE_STRAW: BossTalk = {
+  name: '밀짚왕',
+  sprite: 'm:strawking',
+  lines: [
+    ['"…왔구나. 기다렸다. 이번엔 네가 걸어올 차례였지."', '날 알아?'],
+    ['"알다마다. 나도 그 길로 왔어. 기록의 벽에 이름을 새기고, 들판을 지나, 이 언덕까지. 끝 줄까지 가 봤고, 그다음엔 여기 앉았지."', '그럼 넌…'],
+    ['"쓰러뜨려. 왕관을 가져가. 그리고 끝까지 가 봐. 그게 다음 폰을 기다리는 왕이 바라는 전부다."', '…고마워. 그래도 봐주진 않을 거야.'],
+  ],
+};
+
 /** 보스전 직전 대화 (각성한 보스·재도전에는 생략: 처음 한 번만) */
 export async function bossIntro(id: StoryBoss) {
   if (G.flags[`talk_${id}`]) return;
   G.flags[`talk_${id}`] = true;
-  const t = BOSS_TALK[id];
+  const t = id === 'boss' && seenEnding('throne') ? THRONE_STRAW : BOSS_TALK[id];
   const lines = t.lines.map((l) => [...l] as Line);
   if (align() === 'dark') lines[lines.length - 1][1] = DARK_LAST[id];
   await talkChain(t.name, t.sprite, lines);
@@ -263,7 +275,7 @@ export function townRumor() {
 }
 
 /** 엔딩 뒤 에필로그 카드: 고른 엔딩과 그동안의 선택에 따라 사람들의 뒷이야기 */
-export function epilogueCards(ending: 'return' | 'stay' | 'rewrite' | 'together' | 'pen' | 'stalemate' | 'closed', qDone: (id: string) => boolean): Promise<void> {
+export function epilogueCards(ending: 'return' | 'stay' | 'rewrite' | 'together' | 'pen' | 'stalemate' | 'throne' | 'closed', qDone: (id: string) => boolean): Promise<void> {
   if (fx.instant) return Promise.resolve();
   const cards: [string, string][] = [];
   const TOWN: Record<typeof ending, string> = {
@@ -274,6 +286,7 @@ export function epilogueCards(ending: 'return' | 'stay' | 'rewrite' | 'together'
     pen: '광장의 말들이 줄을 딱 맞춰 걷는다. 너무 반듯해서, 웃는 말이 하나도 없다.',
     stalemate: '광장의 말들이 다 제자리에 앉아 볕을 쬔다. 서두르는 말이 없다.',
     closed: '덮인 책 속에서도 첫수 마을엔 아침이 온다. 말들이 서로 이름을 부르면서 하루를 시작한다.',
+    throne: '얼마 뒤, 기록의 벽 앞에 처음 보는 폰 하나가 서 있었다. 기보에 없는 말이었다. 언덕 위 옥좌 쪽에서 밀짚 타는 냄새가 희미하게 났다.',
   };
   const ELDER: Record<typeof ending, string> = {
     return: '촌장 킹은 다시 한 칸씩 걷는다. 그런데 표정이 전보다 훨씬 편하다.',
@@ -283,6 +296,7 @@ export function epilogueCards(ending: 'return' | 'stay' | 'rewrite' | 'together'
     pen: '촌장 킹은 새로 정해진 순서를 말없이 따른다. 밤이 되면 기록의 벽 앞에 혼자 서 있곤 한다.',
     stalemate: '"비긴 대국이라니. 기보에 이런 끝도 있었구먼." 촌장 킹은 이제 열 번째로 말을 걸어도 화를 안 낸다.',
     closed: '촌장 킹이 덮인 표지를 쓰다듬으며 말했다. "좋은 판이었네. 참말로."',
+    throne: '촌장 킹은 새 폰에게 첫마디를 건네기 전에 언덕 쪽을 한 번 올려다봤다. "자네는… 아니, 아무것도 아닐세. 기록의 벽부터 가 보게."',
   };
   cards.push(['첫수 마을', TOWN[ending]]);
   cards.push(['촌장 킹', ELDER[ending]]);
@@ -301,6 +315,7 @@ export function epilogueCards(ending: 'return' | 'stay' | 'rewrite' | 'together'
   if (G.flags.blunder_dead) cards.push(['지워진 칸', '지워진 칸에서는 더 이상 실수가 기어 나오지 않는다. 하얀 바닥에 작은 발자국 하나만 남았다.']);
   if (ending === 'pen') cards.push(['저자', '펜을 빼앗긴 저자는 여백 구석에 앉아, 당신이 마지막 줄 앞에서 멈추는 걸 지켜봤다. 아무 말도 하지 않았다. 그 기분은 저자가 제일 잘 안다.']);
   if (ending === 'stalemate') cards.push(['저자', '저자는 ½–½이라고 적힌 마지막 줄을 몇 번이고 다시 읽는다. 읽을 때마다 입꼬리가 조금씩 올라간다.']);
+  if (ending === 'throne') cards.push(['언덕 위의 옥좌', '옥좌에 앉은 왕은 판 가장자리를 지우지 않았다. 대신 들판 쪽을 내려다보며, 언젠가 올라올 한 칸짜리 발소리를 기다렸다.']);
   if (ending === 'closed') cards.push(['저자', '저자는 덮인 책을 끌어안고 있다가, 오래전 처음 펜을 잡던 날처럼 설레는 얼굴로 새 기보의 첫 장을 펼쳤다.']);
   return new Promise((res) => {
     const go = h('button', { class: 'btn primary' }, '끝맺기');

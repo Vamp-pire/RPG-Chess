@@ -200,6 +200,7 @@ export const ACHS: Ach[] = [
   { id: 's_together', cat: 'secret', frame: 'challenge', name: '함께 적힌 이름', desc: '동료들과 마지막 줄을 함께 적었다.', secret: true, ev: 'ending', test: (e) => e === 'together' },
   { id: 's_pen', cat: 'secret', frame: 'challenge', name: '펜을 쥔 수', desc: '저자의 펜을 빼앗았다.', secret: true, ev: 'ending', test: (e) => e === 'pen' },
   { id: 's_stalemate', cat: 'secret', frame: 'challenge', name: '스테일메이트', desc: '저자와 싸우지 않고 끝을 맺었다.', secret: true, ev: 'ending', test: (e) => e === 'stalemate' },
+  { id: 's_throne', cat: 'secret', frame: 'challenge', name: '다음 보스', desc: '끝을 적지 않고 옥좌로 돌아갔다.', secret: true, ev: 'ending', test: (e) => e === 'throne' },
   { id: 's_closed', cat: 'secret', frame: 'challenge', name: '덮인 기보', desc: '저자가 스스로 끝을 적게 했다.', secret: true, ev: 'ending', test: (e) => e === 'closed' },
   { id: 's_rewrite', cat: 'secret', frame: 'challenge', name: '다시 쓰인 기보', desc: '숨겨진 끝을 적었다.', secret: true, ev: 'ending', test: (e) => e === 'rewrite' },
   { id: 's_rebirth3', cat: 'secret', frame: 'challenge', name: '윤회하는 폰', desc: '세 번 환생했다.', secret: true, ev: 'rebirth', test: (n) => (n as number) >= 3 },

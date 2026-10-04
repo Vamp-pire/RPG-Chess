@@ -8,6 +8,8 @@ import { pieceSrc } from '../render/sprites';
 import { Choice, dialog, toast } from '../ui/dom';
 import type { App } from './app';
 import { q, qComplete, qStart, qst } from './quests';
+import { ELDER_CONFESSION, elderConfessReady } from './throne';
+import { talkChain } from './story';
 
 const bye: Choice = { label: '그럼 이만', onPick: () => {} };
 
@@ -28,6 +30,12 @@ export function talk(app: App, id: string) {
       if (G.flags.elderPoke === 10) {
         emit('elderPoke');
         return say('촌장 킹', 'bk', '"자네! 이걸로 열 번째일세! 난 한 번에 한 칸밖에 못 움직인다고. 도망도 못 가!"', [{ label: '…죄송합니다', onPick: () => {} }]);
+      }
+      // 폰의 흔적 셋을 모은 뒤 (숨은 엔딩 「다음 보스」)
+      if (elderConfessReady()) {
+        G.flags.elder_confess = true;
+        void talkChain('촌장 킹', 'p:bk', ELDER_CONFESSION).then(() => app.refreshAll());
+        return;
       }
       if (!G.job) return say('촌장 킹', 'bk', '"자넨… 기보에 없는 말이로군. 요즘 이 판이 이상하다네. 다음 수가 안 오고, 가장자리부터 칸이 하나씩 지워지고 있어. 이대로면 마을도 언젠간 사라지겠지. …우선 기록의 벽부터 가 보게. 자네가 뭘 할지 거기서 정해야 하네."', [bye]);
       if (qst('main_promo') === 'active' && matHave('crown') > 0) {
