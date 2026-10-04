@@ -695,6 +695,8 @@ export class Battle {
   private async allyAttack(a: BUnit, u: BUnit) {
     let dmg = (a.ally === 'hero' ? 1 : a.atk) * BAL.baseDmg;
     const isHero = a.ally === 'hero';
+    // 반격 태세: 맞기 전에 기억해 둔다 (맞으면 dmgEnemy가 태세를 푼다)
+    const stance = isHero && !!u.retaliating;
     // 사격: 3 피해(명사수 +1), 쏜 다음 두 턴 재장전, 쓰러뜨려도 그 칸으로 들어가지 않는다
     if (this.isShot(a, u)) {
       let shotDead = false;
@@ -702,6 +704,7 @@ export class Battle {
       await this.shootFx(a, u, () => { shotDead = this.dmgEnemy(u, shotDmg, 1); }); // 사격은 멀리서 치는 것이라 1배
       this.gunReload = 3; // 이번 턴 끝에 1 줄어, 다음 두 턴 동안 못 쏜다
       if (shotDead) await this.kill(u, false, 'shot');
+      else if (stance) await this.retaliate(u, a);
       await this.checkPhase();
       return;
     }
@@ -734,7 +737,6 @@ export class Battle {
     // 붙어서 치면 2배, 떨어져서(미끄러져 오거나 L자로 뛰어) 치면 1배
     const melee = cheb([a.x, a.y], [u.x, u.y]) <= 1;
     if (!melee) fx.text(u.x + 0.5, u.y - 0.45, '먼 공격', '#cfd8e8');
-    const retaliate = !!u.retaliating && melee;
     await lunge(a.ent, [u.x, u.y], () => { sfx('hit'); dead = this.dmgEnemy(u, dmg, melee ? 2 : 1, melee); });
     if (dead) {
       const to: Vec = [u.x, u.y];
@@ -744,18 +746,32 @@ export class Battle {
         a.x = to[0];
         a.y = to[1];
       }
-    } else if (retaliate && u.hp > 0) {
-      u.retaliating = false;
-      u.ent.glow = u.shiny ? 'rgba(255,214,90,0.55)' : undefined;
-      fx.text(u.x + 0.5, u.y - 0.35, '반격!', '#ffb27a', true);
-      await lunge(u.ent, [a.x, a.y], () => {});
-      await this.hitAlly(a, 1, u);
+    } else if (stance && u.hp > 0 && await this.retaliate(u, a)) {
+      // 반격을 받았으면 속박은 걸리지 않는다
     } else if (u.hp > 0 && ((isHero && this.bind > 0) || a.ally === 'ghostknight')) {
       if (isHero) this.bind--;
       u.intent = { t: 'idle', why: '묶임' };
       fx.text(u.x + 0.5, u.y - 0.1, '속박', '#cfe0ff');
     }
     await this.checkPhase();
+  }
+
+  /**
+   * 반격 태세인 적이 주인공에게 맞고 살아남으면, 난이도 확률로 그 자리에서 바로 되받아친다.
+   * 주인공이 친 것과 같은 행마(같은 방향·거리)로 친다: 붙어서 맞았으면 붙어서(2배), 멀리서 맞았으면 그 거리에서(1배).
+   * 확률에 실패해도 태세는 풀린다. 반격했으면 true.
+   */
+  private async retaliate(u: BUnit, a: BUnit): Promise<boolean> {
+    u.retaliating = false;
+    u.ent.glow = u.shiny ? 'rgba(255,214,90,0.55)' : undefined;
+    if (Math.random() >= DIFFS[G.diff].retaliate) {
+      fx.text(u.x + 0.5, u.y - 0.35, '반격 실패', '#c8b9a6');
+      return false;
+    }
+    fx.text(u.x + 0.5, u.y - 0.35, '반격!', '#ffb27a', true);
+    await lunge(u.ent, [a.x, a.y], () => {});
+    await this.hitAlly(a, 1, u);
+    return true;
   }
 
   private healTargets(): Vec[] {
@@ -1473,7 +1489,7 @@ export class Battle {
     await this.bossEvents();
   }
 
-  /** 오래 건드리지 않은 일반 적은 다음 근접 공격을 한 번 되받을 준비를 할 수 있다. */
+  /** 세 턴 동안 건드리지 않은 일반 적은 다음 아군 차례 한 번 동안 반격 태세가 된다 (발동 확률은 난이도). */
   private armRetaliations() {
     const chance = DIFFS[G.diff].retaliate;
     if (!chance || this.enc.boss || this.enc.hold || this.enc.guest || this.enc.daily) return;
@@ -1486,11 +1502,11 @@ export class Battle {
         continue;
       }
       u.unhitTurns = (u.unhitTurns ?? 0) + 1;
-      if (u.unhitTurns < 3 || Math.random() >= chance) continue;
+      if (u.unhitTurns < 3) continue;
       u.unhitTurns = 0;
       u.retaliating = true;
       u.ent.glow = 'rgba(255,174,92,0.7)';
-      fx.text(u.x + 0.5, u.y - 0.25, '반격 태세', '#ffbf7a', true);
+      fx.text(u.x + 0.5, u.y - 0.25, `반격 태세 ${Math.round(chance * 100)}%`, '#ffbf7a', true);
     }
   }
 
@@ -1868,7 +1884,7 @@ export class Battle {
       list.append(h('div', { class: 'enemy-row' },
         h('span', { class: u.shiny ? 'shiny-name' : '' }, u.shiny ? `✨ 빛나는 ${d.name}` : d.name, this.shielded(u) ? ' 🛡' : '', u.revived ? ' (부활)' : ''),
         h('span', { class: 'muted' }, `HP ${u.hp}/${u.maxHp}`, this.synergy(u).bonus ? h('b', { class: 'syn' }, ` ${this.synergy(u).why} +1`) : ''),
-        h('span', { class: `intent ${it?.t ?? ''}` }, u.retaliating ? '반격 태세' : itxt),
+        h('span', { class: `intent ${it?.t ?? ''}` }, u.retaliating ? `반격 태세 ${Math.round(DIFFS[G.diff].retaliate * 100)}%` : itxt),
         h('div', { class: 'small muted w100' }, scholar ? `공격 ${u.atk} · ${d.desc}` : d.desc, u.shiny ? ' 8방향 1칸으로도 움직이고 공격한다.' : ''),
       ));
     }
