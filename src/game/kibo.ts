@@ -7,7 +7,7 @@ import { MATS, MatId } from '../data/materials';
 import { pick } from '../core/geom';
 import { pieceSrc } from '../render/sprites';
 import { dialog, toast } from '../ui/dom';
-import { openPuzzle } from '../ui/town';
+import { openPuzzle, puzzleMovesLabel } from '../ui/town';
 import type { App } from './app';
 
 const R1: AreaId[] = ['meadow', 'forest', 'hills'];
@@ -35,7 +35,7 @@ export function kiboTalk(app: App) {
   const intro = first
     ? '"오, 기보에 없는 말이군! 나는 판을 들고 떠도는 기보사일세. 옛사람들이 남긴 명국을 모으고 있지. 하나 풀어 보겠나? 맞히면 사례하지."'
     : `"또 만났군. 이번 문제는 '${pz.title}'일세."`;
-  const kind = pz.kind === 'mate' ? '(한 수 메이트)' : '(오프닝의 다음 수)';
+  const kind = pz.kind === 'mate' ? `(${puzzleMovesLabel(pz)} 메이트)` : '(오프닝의 다음 수)';
   dialog('떠돌이 기보사', `${intro} ${kind}`, [
     { label: '문제를 푼다', onPick: () => openPuzzle(pz, () => solved(app)) },
     { label: '다음에', onPick: () => {} },

@@ -326,24 +326,41 @@ export function openJobSelect(onPick: (j: JobId) => void) {
   root.append(cols, h('p', { class: 'hint' }, '직업은 전투보다 모험을 바꾼다: 대화·퀘스트 선택지, 상호작용, 보상. 중립 직업만 나중에 다시 고를 수 있다.'));
 }
 
-export interface PuzzleDef { title: string; text: string; pos: Record<string, string>; from: string; to: string; kind?: 'mate' | 'open' }
+/** line: 여러 수 퍼즐의 수순 ('c4g8' 같은 출발·도착 칸, 내 수·상대 응수 번갈아). 없으면 from→to 한 수 */
+export interface PuzzleDef { title: string; text: string; pos: Record<string, string>; from: string; to: string; kind?: 'mate' | 'open'; line?: string[] }
+
+/** 메이트까지 내가 둘 수 (한 수 퍼즐이면 1) */
+export const puzzleMoves = (pz: PuzzleDef) => Math.ceil((pz.line?.length ?? 1) / 2);
+const KN = ['한', '두', '세', '네', '다섯'];
+export const puzzleMovesLabel = (pz: PuzzleDef) => `${KN[puzzleMoves(pz) - 1] ?? puzzleMoves(pz)} 수`;
 
 export const PUZZLES: Record<string, PuzzleDef> = {
   // 백 Kg1 Rd1 Nc3 / 흑 Kh8 g7 h7 → Rd8#
   town: { title: '광장의 수수께끼', text: '돌판에 새겨진 글: "백이 둔다. 한 수 만에 끝내라."', pos: { g1: 'wk', d1: 'wr', c3: 'wn', h8: 'bk', g7: 'bp', h7: 'bp' }, from: 'd1', to: 'd8' },
-  // 스머더드 메이트: 백 Kg1 Ng5 / 흑 Kh8 Rg8 g7 h7 → Nf7#
-  ruins: { title: '금 간 돌판', text: '금 간 돌판: "갇힌 왕을 말 하나로. 한 수."', pos: { g1: 'wk', g5: 'wn', a1: 'wr', h8: 'bk', g8: 'br', g7: 'bp', h7: 'bp', a8: 'br' }, from: 'g5', to: 'f7' },
+  // 필리도르의 질식 메이트 (두 수): Qg8+! Rxg8 Nf7# — chess.js로 수순·유일해 확인
+  ruins: { title: '금 간 돌판', text: '금 간 돌판: "가장 귀한 말을 먼저 내주어라. 그러면 왕은 제 병사에 갇혀 말 하나에 쓰러진다. 백이 둔다, 두 수."', pos: { a8: 'br', f8: 'br', h8: 'bk', a7: 'bp', b7: 'bp', g7: 'bp', h7: 'bp', h6: 'wn', c4: 'wq', a2: 'wp', b2: 'wp', f2: 'wp', g2: 'wp', h2: 'wp', g1: 'wk' }, from: 'c4', to: 'g8', line: ['c4g8', 'f8g8', 'h6f7'] },
   // 아라비안 메이트: 백 Kh1 Rg1 Nf6 / 흑 Kh8 → Rg8# (chess.js로 유일해 확인)
   glacier: { title: '얼음 속 돌판', text: '얼음 밑에 새겨진 글: "사막에서 온 오래된 수. 룩과 나이트가 함께. 한 수 만에."', pos: { h1: 'wk', g1: 'wr', f6: 'wn', h8: 'bk' }, from: 'g1', to: 'g8' },
 };
 
-/** 한 수 메이트 퍼즐 */
+/** 체스 퍼즐: 한 수 메이트, 또는 상대가 정해진 수로 받아 주는 여러 수 메이트 */
 export function openPuzzle(pz: PuzzleDef, onSolved: () => void) {
-  const pos: Record<string, string> = { ...pz.pos };
+  let pos: Record<string, string> = { ...pz.pos };
   let selSq: string | null = null;
+  const line = pz.line ?? [pz.from + pz.to];
+  let step = 0;
+  let busy = false;
   const root = h('div', { class: 'puzzle' });
   const m = modal(pz.title, root);
-  const msg = h('p', {}, pz.text);
+  const multi = line.length > 1;
+  const progress = () => (multi ? ` (${puzzleMovesLabel(pz)} 메이트 · ${Math.floor(step / 2) + 1}/${puzzleMoves(pz)}번째 수)` : '');
+  const msg = h('p', {}, pz.text + progress());
+  const play = (mv: string) => {
+    const f = mv.slice(0, 2);
+    const t = mv.slice(2, 4);
+    pos[t] = pos[f];
+    delete pos[f];
+  };
   const board = h('div', { class: 'pz-board' });
   root.append(msg, board);
   const files = 'abcdefgh';
@@ -355,11 +372,28 @@ export function openPuzzle(pz: PuzzleDef, onSolved: () => void) {
         const cell = h('div', { class: `pz ${(f + r) % 2 ? 'l' : 'd'} ${selSq === sq ? 'sel' : ''}` });
         if (pos[sq]) cell.append(h('img', { src: pieceSrc(pos[sq]), alt: '' }));
         cell.addEventListener('click', () => {
+          if (busy) return;
           if (selSq && selSq !== sq && !(pos[sq] && pos[sq][0] === 'w')) {
-            const ok = selSq === pz.from && sq === pz.to;
+            const ok = selSq + sq === line[step];
+            if (ok && step + 1 < line.length) {
+              // 맞는 수: 두고, 잠시 뒤 상대가 정해진 수로 받는다
+              play(line[step]);
+              step++;
+              selSq = null;
+              busy = true;
+              msg.textContent = '좋은 수다! 상대가 받는다…';
+              render();
+              setTimeout(() => {
+                play(line[step]);
+                step++;
+                busy = false;
+                msg.textContent = `상대가 받았다. 다음 수는?${progress()}`;
+                render();
+              }, 650);
+              return;
+            }
             if (ok) {
-              pos[pz.to] = pos[pz.from];
-              delete pos[pz.from];
+              play(line[step]);
               selSq = null;
               render();
               msg.textContent = pz.kind === 'open' ? '정답! 옛 기보 그대로의 수다.' : pz.kind === 'mate' ? '체크메이트! 기보사가 손뼉을 친다.' : '체크메이트! 돌판이 스르륵 열리며 무언가가 굴러 나온다.';
@@ -372,6 +406,12 @@ export function openPuzzle(pz: PuzzleDef, onSolved: () => void) {
               emit('pzWrong', G.flags.pzWrong);
               setTimeout(() => board.classList.remove('shake'), 400);
               selSq = null;
+              // 여러 수 퍼즐은 처음 배치로 되돌린다
+              if (step) {
+                pos = { ...pz.pos };
+                step = 0;
+                msg.textContent += ` 판이 처음으로 돌아갔다.${progress()}`;
+              }
               render();
             }
             return;
