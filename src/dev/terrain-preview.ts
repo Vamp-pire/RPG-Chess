@@ -5,14 +5,14 @@ import { loadArt } from '../render/art';
 import { Ent, Renderer, Scene, TileKind, mkEnt } from '../render/board';
 import { loadPieceImages } from '../render/sprites';
 
-const SAMPLES: { title: string; note: string; biome: Parameters<typeof randomEnc>[1]; mobs: MobId[] }[] = [
+const SAMPLES: { title: string; note: string; biome: NonNullable<Parameters<typeof randomEnc>[1]>; mobs: MobId[] }[] = [
   { title: '얕은 연못', note: '두꺼비는 물을 뛰어넘지만, 폰이 돌아갈 옆길을 남겼어요.', biome: 'marsh', mobs: ['toad', 'spider', 'toad'] },
   { title: '부서진 돌담', note: 'L자 적이 돌담을 넘되, 중앙 통로는 막지 않아요.', biome: 'forest', mobs: ['bat', 'skeleton', 'rat'] },
   { title: '낮은 돌출 바위', note: '룩형 적은 시야를 얻지만 고지는 플레이어도 쓸 수 있어요.', biome: 'bastion', mobs: ['tower', 'snowpawn', 'tower'] },
   { title: '갈라진 빙판', note: '빙판은 짧은 사선으로만 놓아 이동을 강제하지 않아요.', biome: 'glacier', mobs: ['icesprite', 'frostbishop', 'snowpawn'] },
 ];
 
-function sceneOf(enc: ReturnType<typeof randomEnc>, biome: Parameters<typeof randomEnc>[1]): Scene {
+function sceneOf(enc: ReturnType<typeof randomEnc>, biome: NonNullable<Parameters<typeof randomEnc>[1]>): Scene {
   const tiles = Array.from({ length: enc.h }, () => Array.from({ length: enc.w }, () => 'floor' as TileKind));
   for (const [x, y] of enc.walls) tiles[y][x] = 'wall';
   for (const [x, y] of enc.water ?? []) tiles[y][x] = 'water';
