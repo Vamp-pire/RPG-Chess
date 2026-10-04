@@ -782,7 +782,6 @@ button.qline.tracked { background: #2b2213; }
 .diff-cards { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .diff-card.d-story b { color: #8fd0e8; }
 .diff-card.d-master b { color: #d77cff; }
-.diff-card.d-champion b { color: #ffd35a; }
 .clock-note { border-color: #8a5a2a; background: rgba(160,90,30,.12); color: #ffd3a0; font-size: 13px; padding: 8px 10px; }
 /* 난이도 다섯 칸을 한 줄로 (좁으면 위에서 정한 자동 배치) */
 @media (min-width: 680px) { .diff-cards { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; } .diff-card { padding: 12px 10px; } .diff-card ul { padding-left: 16px; font-size: 13px; } }
