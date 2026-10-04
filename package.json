@@ -1,0 +1,17 @@
+{
+  "name": "chess-forge-rpg",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "check": "tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "mp4-muxer": "^5.2.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1"
+  }
+}
