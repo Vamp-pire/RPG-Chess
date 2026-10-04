@@ -139,6 +139,7 @@ export class Battle {
       for (let y = 1; y < enc.h - 1; y++) for (let x = 0; x < enc.w; x++) if (this.tiles[y][x] === 'floor' && !taken.has(key(x, y))) spots.push([x, y]);
       for (const [x, y] of shuffle(spots).slice(0, 4)) this.tiles[y][x] = rr;
     }
+    this.placeEnemyTerrain();
     this.lo = loadout();
     this.sharp = (this.lo.traits.sharp ?? 0) + (perk('first') ? 1 : 0);
     // 강화 단계 보상: 무기 +2부터 날카로움 +1
@@ -294,6 +295,49 @@ export class Battle {
   }
 
   /** 몹의 행마 (빛나는 개체는 8방향 1칸이 더 붙는다) */
+  /** 멀리서 치는 적인가 (2칸 이상 닿는 공격 행마가 있다) — 수풀을 좋아한다. 아니면 붙어 치는 적 — 고지를 좋아한다 */
+  private isRangedMob(m: MobId) {
+    return MOBS[m].attack.some((r) => r.kind === 'leap' || (r.kind === 'slide' && r.range > 1));
+  }
+
+  /**
+   * 일반 전투(떠도는 몹과의 조우) 시작 때, 난이도만큼 몇몇 적 곁에 그 적에게 유리한 지형을 깐다.
+   * 멀리 치는 적 → 제자리(또는 곁)에 수풀, 붙어 치는 적 → 주인공 쪽 곁에 고지. 주인공 시작 칸 둘레는 비운다.
+   */
+  private placeEnemyTerrain() {
+    const n = DIFFS[G.diff].terrain;
+    const enc = this.enc;
+    if (!n || !enc.terrainName || enc.boss || enc.hold || enc.guest || enc.daily) return;
+    const [px, py] = enc.player;
+    const ok = (x: number, y: number) => x >= 0 && y >= 0 && x < this.w && y < this.h && (this.tiles[y][x] === 'floor') && cheb([x, y], [px, py]) > 1;
+    let left = n;
+    for (const e of shuffle(enc.enemies.slice())) {
+      if (left <= 0) break;
+      const ranged = this.isRangedMob(e.m);
+      const kind: TileKind = ranged ? 'bush' : 'high';
+      const near = KING.map(([dx, dy]) => [e.x + dx, e.y + dy] as Vec).filter(([x, y]) => ok(x, y));
+      let spot: Vec | undefined;
+      if (ranged && ok(e.x, e.y)) spot = [e.x, e.y];
+      else spot = near.sort((a, b) => cheb(a, [px, py]) - cheb(b, [px, py]))[0];
+      if (!spot) continue;
+      this.tiles[spot[1]][spot[0]] = kind;
+      left--;
+    }
+  }
+
+  /** 적이 서 있는 지형이 마음에 드는가 (이동 고를 때 동점을 깨는 작은 가산점) */
+  private terrainPref(u: BUnit, [x, y]: Vec) {
+    const t = this.tileAt(x, y);
+    if (t === 'bush') return this.isRangedMob(u.mob!) ? 0.5 : 0;
+    if (t === 'high') return this.isRangedMob(u.mob!) ? 0 : 0.5;
+    return 0;
+  }
+
+  /** 고지 위의 적은 공격 +1 (주인공과 같은 규칙) */
+  private highBonus(u: BUnit) {
+    return this.tileAt(u.x, u.y) === 'high' ? 1 : 0;
+  }
+
   private mobRules(u: BUnit, k: 'move' | 'attack'): MoveRule[] {
     const base = MOBS[u.mob!][k];
     return u.shiny ? [...base, { kind: 'step', dirs: KING, range: 1, mode: 'both' }] : base;
@@ -396,6 +440,8 @@ export class Battle {
     else {
       this.targets = genTargets(this.rulesOf(a), [a.x, a.y], this.allyGrid(a));
       if (a.rooted) this.targets.moves = [];
+      // 수풀 속 적은 멀리서 칠 수 없다
+      this.targets.attacks = this.targets.attacks.filter(([x, y]) => this.tileAt(x, y) !== 'bush' || cheb([a.x, a.y], [x, y]) <= 1);
     }
     const marks: Mark[] = [];
     const arrows: Arrow[] = [];
@@ -404,7 +450,7 @@ export class Battle {
     const addTele = (u: BUnit, x: number, y: number) => {
       const k = `${x},${y}`;
       const tgt = this.allyAt(x, y) ?? undefined;
-      teleDmg.set(k, (teleDmg.get(k) ?? 0) + (u.atk + this.synergy(u, tgt).bonus) * (cheb([u.x, u.y], [x, y]) <= 1 ? 2 : 1));
+      teleDmg.set(k, (teleDmg.get(k) ?? 0) + (u.atk + this.synergy(u, tgt).bonus + this.highBonus(u)) * (cheb([u.x, u.y], [x, y]) <= 1 ? 2 : 1));
     };
     for (const u of this.enemies()) {
       const it = u.intent;
@@ -415,7 +461,7 @@ export class Battle {
         continue;
       }
       if (it.t === 'attack') for (const [x, y] of it.sq) addTele(u, x, y);
-      if (it.t === 'charge') for (const [x, y] of it.path) { const k = `${x},${y}`; teleDmg.set(k, (teleDmg.get(k) ?? 0) + (u.atk + this.synergy(u, this.allyAt(x, y) ?? undefined).bonus) * 2); }
+      if (it.t === 'charge') for (const [x, y] of it.path) { const k = `${x},${y}`; teleDmg.set(k, (teleDmg.get(k) ?? 0) + (u.atk + this.synergy(u, this.allyAt(x, y) ?? undefined).bonus + this.highBonus(u)) * 2); }
       if (it.t === 'move') arrows.push({ from: [u.x, u.y], to: it.to, color: 'rgba(150,30,30,0.55)' });
     }
     for (const [k, d] of teleDmg) {
@@ -697,6 +743,14 @@ export class Battle {
     const isHero = a.ally === 'hero';
     // 반격 태세: 맞기 전에 기억해 둔다 (맞으면 dmgEnemy가 태세를 푼다)
     const stance = isHero && !!u.retaliating;
+    // 수풀 속 적은 멀리서 오는 공격(사격 포함)을 막는다 — 주인공과 같은 규칙
+    if (this.tileAt(u.x, u.y) === 'bush' && cheb([a.x, a.y], [u.x, u.y]) > 1) {
+      if (isHero && this.isShot(a, u)) this.gunReload = 3;
+      await lunge(a.ent, [u.x, u.y], () => {});
+      fx.text(u.x + 0.5, u.y - 0.25, '수풀에 숨음', '#9fd08a');
+      await this.checkPhase();
+      return;
+    }
     // 사격: 3 피해(명사수 +1), 쏜 다음 두 턴 재장전, 쓰러뜨려도 그 칸으로 들어가지 않는다
     if (this.isShot(a, u)) {
       let shotDead = false;
@@ -1370,9 +1424,12 @@ export class Battle {
   private decideMove(u: BUnit, reserved: Set<string>, score: (s: Vec) => number, strict = false): Intent {
     const moves = genTargets(this.mobRules(u, 'move'), [u.x, u.y], this.gridFor(u)).moves.filter(([x, y]) => this.floor(x, y) && !reserved.has(key(x, y)) && !this.erase.some((e) => eq(e, [x, y])));
     let best: Vec | null = null;
-    let bs = score([u.x, u.y]);
+    // 지형 읽기: 난이도의 '행마 읽기' 확률로, 점수가 거의 같으면 좋아하는 지형(수풀·고지)을 고른다
+    const terr = Math.random() < DIFFS[G.diff].aware;
+    const sc = (p: Vec) => score(p) - (terr ? this.terrainPref(u, p) : 0);
+    let bs = sc([u.x, u.y]);
     for (const m of moves) {
-      const s = score(m);
+      const s = sc(m);
       if (s < bs) {
         bs = s;
         best = m;
@@ -1397,7 +1454,9 @@ export class Battle {
   private atkOf(u: BUnit, tgt?: BUnit) {
     const s = this.synergy(u, tgt);
     if (s.bonus) fx.text(u.x + 0.5, u.y - 0.3, s.why, '#ff9a7a');
-    return u.atk + s.bonus;
+    const hb = this.highBonus(u);
+    if (hb) fx.text(u.x + 0.5, u.y - 0.15, '고지!', '#f0d27a');
+    return u.atk + s.bonus + hb;
   }
 
   private async enemyPhase() {
@@ -1894,7 +1953,7 @@ export class Battle {
     if (this.erase.length) list.append(h('p', { class: 'hint warn-text' }, '주황색 칸 = 다음 적 턴에 지워진다.'));
     if (this.frost.length) list.append(h('p', { class: 'hint warn-text' }, '푸른 눈송이 칸 = 다음 적 턴에 서리 폭풍 (1 피해, 얼음이 된다).'));
     const flat = this.tiles.flat();
-    const terr = [flat.includes('bush') ? '수풀: 멀리서 오는 공격을 막아 줘요' : '', flat.includes('ice') ? '얼음: 밟으면 한 칸 더 미끄러져요' : '', flat.includes('high') ? '고지: 여기서 공격하면 피해 +1' : ''].filter(Boolean);
+    const terr = [flat.includes('bush') ? '수풀: 멀리서 오는 공격을 막아 줘요(적도 같아요)' : '', flat.includes('ice') ? '얼음: 밟으면 한 칸 더 미끄러져요' : '', flat.includes('high') ? '고지: 여기서 공격하면 피해 +1(적도 같아요)' : ''].filter(Boolean);
     if (this.enc.terrainName) list.append(h('p', { class: 'hint' }, `전장 지형 — ${this.enc.terrainName}: ${this.enc.terrainHint}`));
     if (terr.length) list.append(h('p', { class: 'hint' }, `지형 — ${terr.join(' · ')}`));
     el.append(list);
