@@ -5,7 +5,6 @@ import { AreaId } from '../data/areas';
 import { KIBO } from '../data/kibo';
 import { MATS, MatId } from '../data/materials';
 import { pick } from '../core/geom';
-import { pieceSrc } from '../render/sprites';
 import { dialog, toast } from '../ui/dom';
 import { openPuzzle, puzzleMovesLabel } from '../ui/town';
 import type { App } from './app';

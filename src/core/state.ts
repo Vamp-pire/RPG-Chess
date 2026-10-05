@@ -1,7 +1,7 @@
 import { Vec } from './geom';
 import { Item, Mats, SLOTS, Slot, itemStats } from './items';
 import { MoveRule } from './rules';
-import { AbilityId, MATS, MatId, TraitId } from '../data/materials';
+import { AbilityId, MatId, TraitId } from '../data/materials';
 import { Align, BranchId, CompanionId, JobId, PIECES, PROMO3, PieceId, jobDef } from '../data/pieces';
 import { AreaId } from '../data/areas';
 import { SetId, activeSets } from './sets';
@@ -279,8 +279,6 @@ export function spendMats(m: Mats): boolean {
 export const align = (g = G): Align | null => jobDef(g.job)?.align ?? null;
 export const hasJob = (id: JobId, g = G) => g.job === id;
 export const tier = (g = G) => Math.min(3, Math.floor(g.progress / 3));
-
-export const isKeyMat = (id: MatId) => !!MATS[id].key;
 
 // ---------- 로그 ----------
 const logLines: string[] = [];

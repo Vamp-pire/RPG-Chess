@@ -86,15 +86,6 @@ export function totalOf(m: Mats, withBinder = true) {
   return t;
 }
 
-/** 숙련 모드: 재료 총량으로 부위 결정 */
-export function slotByTotal(total: number): Slot | null {
-  if (total < 2) return null;
-  if (total <= 3) return 'weapon';
-  if (total === 4) return 'boots';
-  if (total === 5) return 'armor';
-  if (total === 6) return 'engrave';
-  return 'relic';
-}
 
 export function computeItem(slot: Slot, mats: Mats, quality = 0, shape?: Shape): ItemStats {
   // 숨은 조합: 녹슨 방아쇠 + 거울 파편 + 기보 파편을 무기로 벼리면 총

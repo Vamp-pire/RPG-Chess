@@ -3,8 +3,6 @@
 import { G, align, emit, maxHp, newGame, save, wipeSave } from '../core/state';
 import { Diff } from '../core/difficulty';
 import { MatId } from '../data/materials';
-import { PIECES } from '../data/pieces';
-import { pieceSrc } from '../render/sprites';
 import { cutin, dialog, h, modal, toast } from '../ui/dom';
 import { openDifficulty } from '../ui/extra';
 import type { App } from './app';
@@ -261,9 +259,4 @@ function quickStart() {
   make('armor', { gel: 2, moss: 2, fiber: 1 });
 }
 
-export const rebirthStar = () => {
-  const n = Number(G?.flags.rebirth ?? 0);
-  return n ? `★${n}` : '';
-};
 
-export const pieceImg = () => pieceSrc(PIECES[G.piece].img);

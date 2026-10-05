@@ -1,10 +1,10 @@
-import { SETS, SET_NEED, SetId, familiesOf, setCounts } from '../core/sets';
+import { SETS, SET_NEED, SetId, setCounts } from '../core/sets';
 import { sfx } from '../core/sfx';
 import { DAILY_MODS, dailyEnemyNames, todayDaily } from '../game/daily';
 import { AREAS } from '../data/areas';
 import { perk } from '../game/rewards';
 import { SLOTS, SLOT_INFO, itemStats } from '../core/items';
-import { G, addBag, emit, equipped, hasJob, log, matHave, maxHp, save, spendMats } from '../core/state';
+import { G, addBag, emit, equipped, hasJob, matHave, maxHp, save, spendMats } from '../core/state';
 import { MATS, MAT_ORDER, MatId } from '../data/materials';
 import { ALIGN_NAMES, Align, JOBS, JobId } from '../data/pieces';
 import { BOARD_REWARDS, QUESTS, progressText, q, qComplete, qStart } from '../game/quests';

@@ -1,4 +1,4 @@
-﻿import { DIAG, KING, ORTH, Vec, cheb, eq, key, manh, pick, shuffle, sign } from '../core/geom';
+﻿import { KING, ORTH, Vec, cheb, eq, key, manh, pick, shuffle, sign } from '../core/geom';
 import { Grid, MoveRule, Targets, genTargets } from '../core/rules';
 import { G, HP_MUL, Loadout, emit, equipped, loadout, maxHp, tier } from '../core/state';
 import { BAL, HEAVY, MASTERY_KILLS } from '../core/balance';

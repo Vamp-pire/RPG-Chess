@@ -4,7 +4,7 @@
 import type { App } from '../game/app';
 import { G, curSlot, emit, loadout, newGame, save, setSlot, spendMats, matHave, baseRules } from '../core/state';
 import { MIN_CORE, SLOTS, Slot, Mats, computeItem, itemStats, mergeMats } from '../core/items';
-import { MATS, MAT_ORDER, MatId } from '../data/materials';
+import { MATS, MAT_ORDER } from '../data/materials';
 import { AREAS } from '../data/areas';
 import { fx } from '../render/fx';
 import { newSquares } from '../ui/forge';

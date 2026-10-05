@@ -107,8 +107,6 @@ export function progressText(id: string) {
 }
 
 const R2_DEX: MobId[] = ['toad', 'spider', 'skeleton', 'wraith'];
-export const dexKinds = () => Object.keys(G.dex).filter((m) => MOBS[m as MobId]?.dex && G.dex[m] > 0).length;
-
 /** 장비를 만든 횟수 (분해·판매해도 줄지 않는다). 옛 저장은 가진 장비 수에서 시작 */
 export const craftCount = () => Math.max(Number(G.flags.crafts ?? 0), G.items.length);
 

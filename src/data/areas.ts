@@ -1,4 +1,4 @@
-﻿import { Vec, pick, rand, shuffle, key } from '../core/geom';
+﻿import { Vec, pick, shuffle, key } from '../core/geom';
 import { MobId } from './mobs';
 import { CompanionId } from './pieces';
 

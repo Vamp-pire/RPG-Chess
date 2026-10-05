@@ -2,7 +2,6 @@
 export type Ease = (t: number) => number;
 export const linear: Ease = (t) => t;
 export const easeOut: Ease = (t) => 1 - (1 - t) * (1 - t);
-export const easeIn: Ease = (t) => t * t;
 export const easeInOut: Ease = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 export const easeOutBack: Ease = (t) => {
   const c1 = 1.70158;

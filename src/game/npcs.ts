@@ -4,7 +4,6 @@ import { FIXED_ENCS } from '../data/areas';
 import { MatId } from '../data/materials';
 import { JobId } from '../data/pieces';
 import { fx } from '../render/fx';
-import { pieceSrc } from '../render/sprites';
 import { Choice, dialog, toast } from '../ui/dom';
 import type { App } from './app';
 import { q, qComplete, qStart, qst } from './quests';

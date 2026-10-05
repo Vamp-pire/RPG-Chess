@@ -3,7 +3,7 @@ import { BAL } from '../core/balance';
 import { SETS, SET_NEED, familiesOf, setCounts } from '../core/sets';
 import { sfx } from '../core/sfx';
 import { perk } from '../game/rewards';
-import { ARMOR_TRAIT_MIN, FRAG_MIN, ITEM_MAX_LEVEL, Item, ItemStats, MIN_CORE, Mats, SLOTS, SLOT_INFO, Shape, Slot, TRAIT_MIN, compressBonus, computeItem, shapePicks, slideRangeFor, itemStats, mergeMats, slotByTotal, totalOf } from '../core/items';
+import { ARMOR_TRAIT_MIN, FRAG_MIN, ITEM_MAX_LEVEL, Item, ItemStats, MIN_CORE, Mats, SLOTS, SLOT_INFO, Shape, Slot, TRAIT_MIN, compressBonus, computeItem, shapePicks, slideRangeFor, itemStats, mergeMats, totalOf } from '../core/items';
 import { MoveRule, describeRule, dirName, previewPattern } from '../core/rules';
 import { G, baseRules, emit, equipped, hasJob, loadout, log, matHave, save, spendMats } from '../core/state';
 import { ABILITIES, MATS, MAT_ORDER, MatId, TRAITS } from '../data/materials';
@@ -31,8 +31,8 @@ export function newSquares(base: MoveRule[], extra: MoveRule[]) {
   return n;
 }
 
-/** 추천 조합: 가진 재료로 이 부위에 가장 좋은 조합 몇 개 (숙련 모드면 개수가 그 부위에 맞는 것만) */
-export function recommend(slot: Slot, mastery: boolean, n = 2): { mats: Mats; name: string; score: number; gain: number }[] {
+/** 추천 조합: 가진 재료로 이 부위에 가장 좋은 조합 몇 개 */
+export function recommend(slot: Slot, n = 2): { mats: Mats; name: string; score: number; gain: number }[] {
   const cur = equipped(slot);
   const others = loadout().rules.filter((r) => !(cur ? itemStats(cur).rules : []).some((x) => JSON.stringify(x) === JSON.stringify(r)));
   // 많이 가진 재료 8가지까지만 (조합 수가 너무 많아지지 않게)
@@ -46,7 +46,6 @@ export function recommend(slot: Slot, mastery: boolean, n = 2): { mats: Mats; na
       const m: Mats = fb ? { ...core, fiber: fb } : { ...core };
       const tot = totalOf(m);
       if (tot > MAX_MATS || tot < 2) continue;
-      if (mastery && slotByTotal(tot) !== slot) continue;
       const s = computeItem(slot, m, 0);
       if (s.rules.some((r) => r.gun)) continue; // 숨은 무기는 추천하지 않는다
       const gain = newSquares(others, s.rules);
@@ -75,7 +74,7 @@ export function recommend(slot: Slot, mastery: boolean, n = 2): { mats: Mats; na
 
 /** 목적별 추천 셋: 고르게 좋은 것 · 멀리 닿는 것(새 행마 칸) · 특성·능력이 붙는 것 — 겹치면 다음 후보로 */
 export function recommendByGoal(slot: Slot): { mats: Mats; name: string; score: number; gain: number; goal: string }[] {
-  const all = recommend(slot, false, 40);
+  const all = recommend(slot, 40);
   const out: { mats: Mats; name: string; score: number; gain: number; goal: string }[] = [];
   const take = (goal: string, key: (r: (typeof all)[number]) => number) => {
     const r = [...all].sort((a, b) => key(b) - key(a)).find((x) => !out.some((o) => o.name === x.name));
@@ -179,8 +178,7 @@ export function openForge(onChange: () => void, opts: { craftOnly?: boolean } = 
   let sel: Mats = {};
   let enhId: number | null = null;
   let shape: Shape = {}; // 무기 행마의 방향 고르기·압축 (재료별)
-  // 숙련 제작(개수로 부위가 정해짐)은 없앴다 — '선택을 막는 규칙'으로만 느껴진다는 베타 의견. 부위는 늘 직접 고른다
-  const useMastery = false;
+  // 부위는 늘 직접 고른다 (재료 개수로 부위가 정해지던 숙련 제작은 베타 의견으로 없앴다)
   let focus: MatId | null = null; // 인벤토리에서 마지막으로 가리킨 재료 (아래 설명 줄)
   const root = h('div', { class: 'forge' });
   const m = modal(opts.craftOnly ? '떠돌이 대장장이' : '대장간', root, { wide: true, onClose: () => { hideTip(); onChange(); } });
@@ -189,7 +187,7 @@ export function openForge(onChange: () => void, opts: { craftOnly?: boolean } = 
   const alch = () => (hasJob('alchemist') ? 1 : 0);
   const curSlot = (): Slot | null => {
     if (tab === 'enhance') return G.items.find((i) => i.id === enhId)?.slot ?? null;
-    return useMastery ? slotByTotal(totalOf(sel)) : slot;
+    return slot;
   };
 
   function render() {
@@ -212,15 +210,13 @@ export function openForge(onChange: () => void, opts: { craftOnly?: boolean } = 
     root.append(h('div', { class: 'f-cols' }, left, right));
 
     if (tab === 'craft') {
-      if (!useMastery) {
-        const sl = h('div', { class: 'slots' });
-        for (const s of SLOTS) {
-          const b = h('button', { class: `slot-btn ${slot === s ? 'on' : ''}` }, h('b', {}, SLOT_INFO[s].name), h('small', {}, SLOT_INFO[s].role));
-          b.addEventListener('click', () => { slot = s; render(); });
-          sl.append(b);
-        }
-        left.append(sl);
+      const sl = h('div', { class: 'slots' });
+      for (const s of SLOTS) {
+        const b = h('button', { class: `slot-btn ${slot === s ? 'on' : ''}` }, h('b', {}, SLOT_INFO[s].name), h('small', {}, SLOT_INFO[s].role));
+        b.addEventListener('click', () => { slot = s; render(); });
+        sl.append(b);
       }
+      left.append(sl);
     } else {
       const list = h('div', { class: 'enh-list' });
       const items = G.items.filter((i) => i.level < ITEM_MAX_LEVEL);
@@ -286,13 +282,13 @@ export function openForge(onChange: () => void, opts: { craftOnly?: boolean } = 
     left.append(h('div', { class: 'sub' }, `재료 (${total}/${MAX_MATS})`, h('span', { class: 'inv-how' }, ' — 눌러서 넣기 · 올려 두면 설명')), invWrap);
     // 💡 추천 조합 (제작 탭에서만)
     if (tab === 'craft') {
-      const target: Slot = useMastery ? (curSlot() ?? slot) : slot;
+      const target: Slot = slot;
       const recs = recommendByGoal(target);
-      const box = h('div', { class: 'recs' }, h('div', { class: 'sub' }, `💡 추천 조합 — ${SLOT_INFO[target].name}${useMastery ? ' (숙련: 개수로 부위가 정해져요)' : ''}`));
+      const box = h('div', { class: 'recs' }, h('div', { class: 'sub' }, `💡 추천 조합 — ${SLOT_INFO[target].name}`));
       if (!recs.length) box.append(h('p', { class: 'muted small' }, `재료가 모자라요. ${SLOT_INFO[target].name}에는 섬유 말고 재료가 ${MIN_CORE[target]}개 이상 필요해요.`));
       for (const r of recs) {
         const b = h('button', { class: 'btn small' }, '넣기');
-        b.addEventListener('click', () => { sel = { ...r.mats }; if (!useMastery) slot = target; clearCoach('mastery'); render(); });
+        b.addEventListener('click', () => { sel = { ...r.mats }; slot = target; clearCoach('mastery'); render(); });
         box.append(h('div', { class: 'rec', title: r.gain ? `새 행마 +${r.gain}칸` : '특성·능력 위주' }, h('span', { class: 'rec-goal' }, r.goal), h('b', {}, r.name), h('span', { class: 'chips' }, ...Object.entries(r.mats).filter(([, n]) => n).map(([id, n]) => h('span', { class: 'chip mat-chip' }, matIcon(id as MatId, 16), ` ×${n}`))), h('small', { class: 'rec-gain' }, r.gain ? `+${r.gain}칸` : '특성'), b));
       }
       recHolder.append(box);
