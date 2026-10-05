@@ -11,7 +11,7 @@
 
 export type Channel = 'beta' | 'release';
 export const CHANNEL: Channel = 'beta';
-export const VERSION = '1.0';
+export const VERSION = '1.1';
 /** 저장 세대. 올리면 이전 세대의 저장을 한 번 초기화한다 */
 export const SAVE_GEN = 1;
 
@@ -37,6 +37,23 @@ export interface PatchNote { ver: string; date: string; title: string; items: st
 
 /** 최신이 맨 앞. 스포일러(보스 정체·숨은 무기·비밀 지역·엔딩)는 쓰지 않는다 */
 export const PATCH_NOTES: PatchNote[] = [
+  {
+    ver: '1.1',
+    date: '2026-10-05',
+    title: '판이 적의 편을 들기 시작했어요',
+    items: [
+      '전투: 반격 태세가 바뀌었어요. 세 턴 동안 건드리지 않은 일반 적은 한 턴 동안 주황빛 「반격 태세 N%」가 돼요. 그 적을 쳤는데 살아남으면 N% 확률로 그 자리에서 바로, 내가 친 것과 같은 행마로 되받아쳐요. 붙어서 쳤으면 붙어서, 멀리서 쳤으면 그 거리에서요. 한 턴 기다리면 풀려요.',
+      '전투: 수풀과 고지는 이제 적도 똑같이 써요. 수풀 속 적은 멀리서 칠 수 없고, 고지 위의 적은 피해가 1 늘어요. 멀리 치는 적은 수풀을, 붙어 치는 적은 고지를 찾아 자리를 잡아요.',
+      '전투: 일반 전투를 시작할 때 난이도에 따라 적에게 유리한 지형이 몇 칸 깔려요.',
+      '난이도: 단계별 전투 세기를 다시 맞췄어요. 쉬움~어려움은 지난 버전과 비슷하고, 입문에도 새 장치가 아주 약하게 붙어요. 그랜드마스터는 한층 더 사나워졌어요.',
+      '퍼즐: 여러 수 체크메이트 퍼즐이 생겼어요. 내가 두면 상대가 받아 두고, 틀리면 처음 배치로 돌아가요. 돌판 퍼즐 하나가 두 수 문제로 바뀌었어요.',
+      '퍼즐: 떠돌이 기보사의 명국이 14문제로 늘었어요. 마지막 문제는 여덟 수짜리예요. 예전에 문제를 다 풀었던 분께도 기보사가 다시 찾아가요.',
+      '판 곳곳에 누군가 몰래 남긴 낙서가 숨어 있다는 소문이 있어요.',
+      '기보에 아직 아무도 적지 못한 끝이 하나 더 생겼다는 이야기도 들려요.',
+      '저장: 예전에 저장이 초기화된 적이 있는 브라우저라면, 남아 있던 백업을 찾아 되살려 드려요. 지금 진행 중인 저장이 있으면 어느 쪽을 쓸지 먼저 물어봐요.',
+      '방문 수 통계를 모으기 시작했어요. 쿠키 없이 익명으로 집계해요.',
+    ],
+  },
   {
     ver: '1.0',
     date: '2026-10-03',
@@ -180,6 +197,67 @@ export function takeBetaGift(): boolean {
   } catch {
     return false;
   }
+}
+
+// ---------- 백업 되살리기 ----------
+// 저장 세대를 한때 올렸다가 되돌린 경우처럼, 지금 세대인데도 브라우저에 백업(cf_beta_backup)만 남은 사람의 저장을 되살린다.
+// 백업 세대가 지금 SAVE_GEN 보다 낮으면(= 정식 출시 때의 정상 초기화) 되살리지 않는다. 한 번 처리하면 다시 묻지 않는다.
+type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+interface Backup { gen: number; at: number; data: Record<string, string> }
+const DONE_KEY = 'cf_backup_done';
+
+function readBackup(store: Store): Backup | null {
+  try {
+    if (store.getItem(DONE_KEY)) return null;
+    const raw = store.getItem('cf_beta_backup');
+    if (!raw) return null;
+    const b = JSON.parse(raw) as Backup;
+    if (!b?.data || !SAVE_KEYS.some((k) => k !== 'cf_slot' && b.data[k] != null)) return null;
+    return Number(b.gen) >= SAVE_GEN ? b : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 되살릴 백업이 있는가: 'none' 없음 / 'empty' 지금 저장이 비어 있어 바로 되살려도 됨 / 'conflict' 지금 진행이 있어 물어봐야 함 */
+export function backupState(store: Store = localStorage): 'none' | 'empty' | 'conflict' {
+  try {
+    if (!readBackup(store)) return 'none';
+    return SAVE_KEYS.some((k) => k !== 'cf_slot' && store.getItem(k) !== null) ? 'conflict' : 'empty';
+  } catch {
+    return 'none';
+  }
+}
+
+/** 백업을 되살린다. 지금 저장은 cf_restore_prev 에 남겨 둔다. 되살렸으면 true */
+export function restoreBackup(store: Store = localStorage): boolean {
+  try {
+    const b = readBackup(store);
+    if (!b) return false;
+    const prev: Record<string, string> = {};
+    for (const k of SAVE_KEYS) {
+      const v = store.getItem(k);
+      if (v !== null) prev[k] = v;
+      store.removeItem(k);
+    }
+    if (Object.keys(prev).length) store.setItem('cf_restore_prev', JSON.stringify({ at: Date.now(), data: prev }));
+    for (const [k, v] of Object.entries(b.data)) if (SAVE_KEYS.includes(k)) store.setItem(k, v);
+    store.setItem(GEN_KEY, String(SAVE_GEN));
+    // 초기화 때 걸어 둔 베타 선물은 저장을 되찾았으니 거둔다 (나중에 정식 출시로 초기화되면 다시 걸린다)
+    if (store.getItem('cf_beta_gift') === 'pending') store.removeItem('cf_beta_gift');
+    store.setItem(DONE_KEY, '1');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** 되살리지 않고 지금 진행을 유지한다 (다시 묻지 않음) */
+export function keepCurrentSave(store: Store = localStorage) {
+  try {
+    store.setItem(GEN_KEY, String(SAVE_GEN));
+    store.setItem(DONE_KEY, '1');
+  } catch { /* */ }
 }
 
 // ---------- 새 버전 안내 ----------

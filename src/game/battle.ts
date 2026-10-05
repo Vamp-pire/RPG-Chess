@@ -15,6 +15,7 @@ import { DIFFS } from '../core/difficulty';
 import { sfx } from '../core/sfx';
 import { perk } from './rewards';
 import { runRule } from './runrules';
+import { bossFell } from './throne';
 
 type Intent =
   | { t: 'attack'; sq: Vec[]; hidden?: boolean; blur?: boolean }
@@ -139,6 +140,7 @@ export class Battle {
       for (let y = 1; y < enc.h - 1; y++) for (let x = 0; x < enc.w; x++) if (this.tiles[y][x] === 'floor' && !taken.has(key(x, y))) spots.push([x, y]);
       for (const [x, y] of shuffle(spots).slice(0, 4)) this.tiles[y][x] = rr;
     }
+    this.placeEnemyTerrain();
     this.lo = loadout();
     this.sharp = (this.lo.traits.sharp ?? 0) + (perk('first') ? 1 : 0);
     // 강화 단계 보상: 무기 +2부터 날카로움 +1
@@ -294,6 +296,49 @@ export class Battle {
   }
 
   /** 몹의 행마 (빛나는 개체는 8방향 1칸이 더 붙는다) */
+  /** 멀리서 치는 적인가 (2칸 이상 닿는 공격 행마가 있다) — 수풀을 좋아한다. 아니면 붙어 치는 적 — 고지를 좋아한다 */
+  private isRangedMob(m: MobId) {
+    return MOBS[m].attack.some((r) => r.kind === 'leap' || (r.kind === 'slide' && r.range > 1));
+  }
+
+  /**
+   * 일반 전투(떠도는 몹과의 조우) 시작 때, 난이도만큼 몇몇 적 곁에 그 적에게 유리한 지형을 깐다.
+   * 멀리 치는 적 → 제자리(또는 곁)에 수풀, 붙어 치는 적 → 주인공 쪽 곁에 고지. 주인공 시작 칸 둘레는 비운다.
+   */
+  private placeEnemyTerrain() {
+    const n = DIFFS[G.diff].terrain;
+    const enc = this.enc;
+    if (!n || !enc.terrainName || enc.boss || enc.hold || enc.guest || enc.daily) return;
+    const [px, py] = enc.player;
+    const ok = (x: number, y: number) => x >= 0 && y >= 0 && x < this.w && y < this.h && (this.tiles[y][x] === 'floor') && cheb([x, y], [px, py]) > 1;
+    let left = n;
+    for (const e of shuffle(enc.enemies.slice())) {
+      if (left <= 0) break;
+      const ranged = this.isRangedMob(e.m);
+      const kind: TileKind = ranged ? 'bush' : 'high';
+      const near = KING.map(([dx, dy]) => [e.x + dx, e.y + dy] as Vec).filter(([x, y]) => ok(x, y));
+      let spot: Vec | undefined;
+      if (ranged && ok(e.x, e.y)) spot = [e.x, e.y];
+      else spot = near.sort((a, b) => cheb(a, [px, py]) - cheb(b, [px, py]))[0];
+      if (!spot) continue;
+      this.tiles[spot[1]][spot[0]] = kind;
+      left--;
+    }
+  }
+
+  /** 적이 서 있는 지형이 마음에 드는가 (이동 고를 때 동점을 깨는 작은 가산점) */
+  private terrainPref(u: BUnit, [x, y]: Vec) {
+    const t = this.tileAt(x, y);
+    if (t === 'bush') return this.isRangedMob(u.mob!) ? 0.5 : 0;
+    if (t === 'high') return this.isRangedMob(u.mob!) ? 0 : 0.5;
+    return 0;
+  }
+
+  /** 고지 위의 적은 공격 +1 (주인공과 같은 규칙) */
+  private highBonus(u: BUnit) {
+    return this.tileAt(u.x, u.y) === 'high' ? 1 : 0;
+  }
+
   private mobRules(u: BUnit, k: 'move' | 'attack'): MoveRule[] {
     const base = MOBS[u.mob!][k];
     return u.shiny ? [...base, { kind: 'step', dirs: KING, range: 1, mode: 'both' }] : base;
@@ -396,6 +441,8 @@ export class Battle {
     else {
       this.targets = genTargets(this.rulesOf(a), [a.x, a.y], this.allyGrid(a));
       if (a.rooted) this.targets.moves = [];
+      // 수풀 속 적은 멀리서 칠 수 없다
+      this.targets.attacks = this.targets.attacks.filter(([x, y]) => this.tileAt(x, y) !== 'bush' || cheb([a.x, a.y], [x, y]) <= 1);
     }
     const marks: Mark[] = [];
     const arrows: Arrow[] = [];
@@ -404,7 +451,7 @@ export class Battle {
     const addTele = (u: BUnit, x: number, y: number) => {
       const k = `${x},${y}`;
       const tgt = this.allyAt(x, y) ?? undefined;
-      teleDmg.set(k, (teleDmg.get(k) ?? 0) + (u.atk + this.synergy(u, tgt).bonus) * (cheb([u.x, u.y], [x, y]) <= 1 ? 2 : 1));
+      teleDmg.set(k, (teleDmg.get(k) ?? 0) + (u.atk + this.synergy(u, tgt).bonus + this.highBonus(u)) * (cheb([u.x, u.y], [x, y]) <= 1 ? 2 : 1));
     };
     for (const u of this.enemies()) {
       const it = u.intent;
@@ -415,7 +462,7 @@ export class Battle {
         continue;
       }
       if (it.t === 'attack') for (const [x, y] of it.sq) addTele(u, x, y);
-      if (it.t === 'charge') for (const [x, y] of it.path) { const k = `${x},${y}`; teleDmg.set(k, (teleDmg.get(k) ?? 0) + (u.atk + this.synergy(u, this.allyAt(x, y) ?? undefined).bonus) * 2); }
+      if (it.t === 'charge') for (const [x, y] of it.path) { const k = `${x},${y}`; teleDmg.set(k, (teleDmg.get(k) ?? 0) + (u.atk + this.synergy(u, this.allyAt(x, y) ?? undefined).bonus + this.highBonus(u)) * 2); }
       if (it.t === 'move') arrows.push({ from: [u.x, u.y], to: it.to, color: 'rgba(150,30,30,0.55)' });
     }
     for (const [k, d] of teleDmg) {
@@ -695,6 +742,16 @@ export class Battle {
   private async allyAttack(a: BUnit, u: BUnit) {
     let dmg = (a.ally === 'hero' ? 1 : a.atk) * BAL.baseDmg;
     const isHero = a.ally === 'hero';
+    // 반격 태세: 맞기 전에 기억해 둔다 (맞으면 dmgEnemy가 태세를 푼다)
+    const stance = isHero && !!u.retaliating;
+    // 수풀 속 적은 멀리서 오는 공격(사격 포함)을 막는다 — 주인공과 같은 규칙
+    if (this.tileAt(u.x, u.y) === 'bush' && cheb([a.x, a.y], [u.x, u.y]) > 1) {
+      if (isHero && this.isShot(a, u)) this.gunReload = 3;
+      await lunge(a.ent, [u.x, u.y], () => {});
+      fx.text(u.x + 0.5, u.y - 0.25, '수풀에 숨음', '#9fd08a');
+      await this.checkPhase();
+      return;
+    }
     // 사격: 3 피해(명사수 +1), 쏜 다음 두 턴 재장전, 쓰러뜨려도 그 칸으로 들어가지 않는다
     if (this.isShot(a, u)) {
       let shotDead = false;
@@ -702,6 +759,7 @@ export class Battle {
       await this.shootFx(a, u, () => { shotDead = this.dmgEnemy(u, shotDmg, 1); }); // 사격은 멀리서 치는 것이라 1배
       this.gunReload = 3; // 이번 턴 끝에 1 줄어, 다음 두 턴 동안 못 쏜다
       if (shotDead) await this.kill(u, false, 'shot');
+      else if (stance) await this.retaliate(u, a);
       await this.checkPhase();
       return;
     }
@@ -734,28 +792,44 @@ export class Battle {
     // 붙어서 치면 2배, 떨어져서(미끄러져 오거나 L자로 뛰어) 치면 1배
     const melee = cheb([a.x, a.y], [u.x, u.y]) <= 1;
     if (!melee) fx.text(u.x + 0.5, u.y - 0.45, '먼 공격', '#cfd8e8');
-    const retaliate = !!u.retaliating && melee;
     await lunge(a.ent, [u.x, u.y], () => { sfx('hit'); dead = this.dmgEnemy(u, dmg, melee ? 2 : 1, melee); });
     if (dead) {
       const to: Vec = [u.x, u.y];
+      // 폰이 잡는 방식(바로 아래 대각선 칸에서의 일격, 주인공·동료 모두)이었나 — 숨은 엔딩 단서용
+      this.pawnCapture = Math.abs(u.x - a.x) === 1 && a.y === u.y + 1;
       await this.kill(u, false, how);
+      this.pawnCapture = false;
       if (this.free(to[0], to[1])) {
         await moveEnt(a.ent, to);
         a.x = to[0];
         a.y = to[1];
       }
-    } else if (retaliate && u.hp > 0) {
-      u.retaliating = false;
-      u.ent.glow = u.shiny ? 'rgba(255,214,90,0.55)' : undefined;
-      fx.text(u.x + 0.5, u.y - 0.35, '반격!', '#ffb27a', true);
-      await lunge(u.ent, [a.x, a.y], () => {});
-      await this.hitAlly(a, 1, u);
+    } else if (stance && u.hp > 0 && await this.retaliate(u, a)) {
+      // 반격을 받았으면 속박은 걸리지 않는다
     } else if (u.hp > 0 && ((isHero && this.bind > 0) || a.ally === 'ghostknight')) {
       if (isHero) this.bind--;
       u.intent = { t: 'idle', why: '묶임' };
       fx.text(u.x + 0.5, u.y - 0.1, '속박', '#cfe0ff');
     }
     await this.checkPhase();
+  }
+
+  /**
+   * 반격 태세인 적이 주인공에게 맞고 살아남으면, 난이도 확률로 그 자리에서 바로 되받아친다.
+   * 주인공이 친 것과 같은 행마(같은 방향·거리)로 친다: 붙어서 맞았으면 붙어서(2배), 멀리서 맞았으면 그 거리에서(1배).
+   * 확률에 실패해도 태세는 풀린다. 반격했으면 true.
+   */
+  private async retaliate(u: BUnit, a: BUnit): Promise<boolean> {
+    u.retaliating = false;
+    u.ent.glow = u.shiny ? 'rgba(255,214,90,0.55)' : undefined;
+    if (Math.random() >= DIFFS[G.diff].retaliate) {
+      fx.text(u.x + 0.5, u.y - 0.35, '반격 실패', '#c8b9a6');
+      return false;
+    }
+    fx.text(u.x + 0.5, u.y - 0.35, '반격!', '#ffb27a', true);
+    await lunge(u.ent, [a.x, a.y], () => {});
+    await this.hitAlly(a, 1, u);
+    return true;
   }
 
   private healTargets(): Vec[] {
@@ -799,6 +873,9 @@ export class Battle {
     return u.hp <= 0;
   }
 
+  /** 지금 처리 중인 처치가 '폰이 잡는 방식'의 일격인가 (allyAttack이 kill 직전에 세운다) */
+  private pawnCapture = false;
+
   private async kill(u: BUnit, noDrop = false, how = 'other') {
     u.hp = 0;
     if (['melee', 'knight', 'shot'].includes(how)) {
@@ -828,6 +905,10 @@ export class Battle {
       return;
     }
     if (u.mob && !noDrop) {
+      // 숨은 엔딩 「다음 보스」의 단서: 보스를 폰답게 끝냈는가
+      if (u.mob === 'strawking') bossFell('straw', this.hero.hp > 0 && this.tileAt(this.hero.x, this.hero.y) === 'throne');
+      if (u.mob === 'misqueen') bossFell('queen', u.y === 0);
+      if (u.mob === 'frozenking') bossFell('king', this.pawnCapture);
       this.kills.push(u.mob);
       this.hows.push({ mob: u.mob, how });
       if (u.shiny) this.shinyKills.push(u.mob);
@@ -1354,9 +1435,12 @@ export class Battle {
   private decideMove(u: BUnit, reserved: Set<string>, score: (s: Vec) => number, strict = false): Intent {
     const moves = genTargets(this.mobRules(u, 'move'), [u.x, u.y], this.gridFor(u)).moves.filter(([x, y]) => this.floor(x, y) && !reserved.has(key(x, y)) && !this.erase.some((e) => eq(e, [x, y])));
     let best: Vec | null = null;
-    let bs = score([u.x, u.y]);
+    // 지형 읽기: 난이도의 '행마 읽기' 확률로, 점수가 거의 같으면 좋아하는 지형(수풀·고지)을 고른다
+    const terr = Math.random() < DIFFS[G.diff].aware;
+    const sc = (p: Vec) => score(p) - (terr ? this.terrainPref(u, p) : 0);
+    let bs = sc([u.x, u.y]);
     for (const m of moves) {
-      const s = score(m);
+      const s = sc(m);
       if (s < bs) {
         bs = s;
         best = m;
@@ -1381,7 +1465,9 @@ export class Battle {
   private atkOf(u: BUnit, tgt?: BUnit) {
     const s = this.synergy(u, tgt);
     if (s.bonus) fx.text(u.x + 0.5, u.y - 0.3, s.why, '#ff9a7a');
-    return u.atk + s.bonus;
+    const hb = this.highBonus(u);
+    if (hb) fx.text(u.x + 0.5, u.y - 0.15, '고지!', '#f0d27a');
+    return u.atk + s.bonus + hb;
   }
 
   private async enemyPhase() {
@@ -1473,7 +1559,7 @@ export class Battle {
     await this.bossEvents();
   }
 
-  /** 오래 건드리지 않은 일반 적은 다음 근접 공격을 한 번 되받을 준비를 할 수 있다. */
+  /** 세 턴 동안 건드리지 않은 일반 적은 다음 아군 차례 한 번 동안 반격 태세가 된다 (발동 확률은 난이도). */
   private armRetaliations() {
     const chance = DIFFS[G.diff].retaliate;
     if (!chance || this.enc.boss || this.enc.hold || this.enc.guest || this.enc.daily) return;
@@ -1486,11 +1572,11 @@ export class Battle {
         continue;
       }
       u.unhitTurns = (u.unhitTurns ?? 0) + 1;
-      if (u.unhitTurns < 3 || Math.random() >= chance) continue;
+      if (u.unhitTurns < 3) continue;
       u.unhitTurns = 0;
       u.retaliating = true;
       u.ent.glow = 'rgba(255,174,92,0.7)';
-      fx.text(u.x + 0.5, u.y - 0.25, '반격 태세', '#ffbf7a', true);
+      fx.text(u.x + 0.5, u.y - 0.25, `반격 태세 ${Math.round(chance * 100)}%`, '#ffbf7a', true);
     }
   }
 
@@ -1868,7 +1954,7 @@ export class Battle {
       list.append(h('div', { class: 'enemy-row' },
         h('span', { class: u.shiny ? 'shiny-name' : '' }, u.shiny ? `✨ 빛나는 ${d.name}` : d.name, this.shielded(u) ? ' 🛡' : '', u.revived ? ' (부활)' : ''),
         h('span', { class: 'muted' }, `HP ${u.hp}/${u.maxHp}`, this.synergy(u).bonus ? h('b', { class: 'syn' }, ` ${this.synergy(u).why} +1`) : ''),
-        h('span', { class: `intent ${it?.t ?? ''}` }, u.retaliating ? '반격 태세' : itxt),
+        h('span', { class: `intent ${it?.t ?? ''}` }, u.retaliating ? `반격 태세 ${Math.round(DIFFS[G.diff].retaliate * 100)}%` : itxt),
         h('div', { class: 'small muted w100' }, scholar ? `공격 ${u.atk} · ${d.desc}` : d.desc, u.shiny ? ' 8방향 1칸으로도 움직이고 공격한다.' : ''),
       ));
     }
@@ -1878,7 +1964,7 @@ export class Battle {
     if (this.erase.length) list.append(h('p', { class: 'hint warn-text' }, '주황색 칸 = 다음 적 턴에 지워진다.'));
     if (this.frost.length) list.append(h('p', { class: 'hint warn-text' }, '푸른 눈송이 칸 = 다음 적 턴에 서리 폭풍 (1 피해, 얼음이 된다).'));
     const flat = this.tiles.flat();
-    const terr = [flat.includes('bush') ? '수풀: 멀리서 오는 공격을 막아 줘요' : '', flat.includes('ice') ? '얼음: 밟으면 한 칸 더 미끄러져요' : '', flat.includes('high') ? '고지: 여기서 공격하면 피해 +1' : ''].filter(Boolean);
+    const terr = [flat.includes('bush') ? '수풀: 멀리서 오는 공격을 막아 줘요(적도 같아요)' : '', flat.includes('ice') ? '얼음: 밟으면 한 칸 더 미끄러져요' : '', flat.includes('high') ? '고지: 여기서 공격하면 피해 +1(적도 같아요)' : ''].filter(Boolean);
     if (this.enc.terrainName) list.append(h('p', { class: 'hint' }, `전장 지형 — ${this.enc.terrainName}: ${this.enc.terrainHint}`));
     if (terr.length) list.append(h('p', { class: 'hint' }, `지형 — ${terr.join(' · ')}`));
     el.append(list);

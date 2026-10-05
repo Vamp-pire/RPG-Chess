@@ -153,15 +153,15 @@ function typewrite(el: HTMLElement, text: string) {
   tick();
 }
 
-export function toast(msg: string, kind: 'info' | 'good' | 'rare' | 'bad' = 'info') {
+export function toast(msg: string, kind: 'info' | 'good' | 'rare' | 'bad' = 'info', ms = 2400) {
   if (fx.instant) return;
   const el = h('div', { class: `toast ${kind}` }, msg);
   const box = document.getElementById('toasts')!;
   box.append(el);
   // 한꺼번에 3개까지만 보여 준다 (오래된 것부터 치운다)
   while (box.children.length > 3) box.firstElementChild!.remove();
-  setTimeout(() => el.classList.add('out'), 2400);
-  setTimeout(() => el.remove(), 2800);
+  setTimeout(() => el.classList.add('out'), ms);
+  setTimeout(() => el.remove(), ms + 400);
 }
 
 /**

@@ -1,4 +1,4 @@
-// 엔딩과 환생: 저자 앞에서 마지막 수를 고른다. 엔딩은 7개 — 기본 둘, 판 중의 선택으로 열리는 넷, 모두를 본 뒤의 진엔딩 하나.
+// 엔딩과 환생: 저자 앞에서 마지막 수를 고른다. 엔딩은 8개 — 기본 둘, 판 중의 선택으로 열리는 넷, 환생한 판의 숨은 단서로 열리는 「다음 보스」, 모두를 본 뒤의 진엔딩 하나.
 // 엔딩을 본 뒤 환생하면 일부를 이어받아 처음부터.
 import { G, align, emit, maxHp, newGame, save, wipeSave } from '../core/state';
 import { Diff } from '../core/difficulty';
@@ -11,9 +11,10 @@ import type { App } from './app';
 import { RunRule, pickRunRule } from './runrules';
 import { authorTruth, epilogueCards, jo, pw, talkChain } from './story';
 import { qst } from './quests';
+import { throneOpen } from './throne';
 
-export type EndingId = 'return' | 'stay' | 'rewrite' | 'together' | 'pen' | 'stalemate' | 'closed';
-export const ENDING_ORDER: EndingId[] = ['return', 'stay', 'rewrite', 'together', 'pen', 'stalemate', 'closed'];
+export type EndingId = 'return' | 'stay' | 'rewrite' | 'together' | 'pen' | 'stalemate' | 'throne' | 'closed';
+export const ENDING_ORDER: EndingId[] = ['return', 'stay', 'rewrite', 'together', 'pen', 'stalemate', 'throne', 'closed'];
 
 /** 엔딩 문장의 {P}는 고른 말 이름(폰·나이트·비숍)으로 바뀐다 */
 export const ENDINGS: Record<EndingId, { name: string; text: string; bonus: string; hint: string; stayLine: string }> = {
@@ -58,6 +59,13 @@ export const ENDINGS: Record<EndingId, { name: string; text: string; bonus: stri
     bonus: '환생 보너스: 최대 체력 +2',
     hint: '빛의 길을 걸으며, 설득하고 정화하고 넋을 기려 온 자라면… 저자와 싸우지 않는 끝도 있다.',
     stayLine: '비긴 판 위에는 서두르는 말이 없다.',
+  },
+  throne: {
+    name: '다음 보스',
+    text: '{P}은(는) 마지막 줄을 적지 않고 펜을 내려놓았다. 그리고 왔던 길을 거꾸로 걸었다. 여백을 지나, 얼어붙은 봉우리와 늪을 지나, 언덕 위 빈 옥좌까지. 밀짚왕이 앉아 있던 자리는 아직 따뜻했다. {P}은(는) 그 자리에 앉았다. 끝까지 간 폰은 판을 떠날 수 없다. 대신 다음 폰을 기다릴 수는 있다. 언젠가 기록의 벽 앞에서 눈을 뜰, 기보에 없는 누군가를.',
+    bonus: '환생 보너스: 다음 판의 밀짚왕이 당신을 기억한다',
+    hint: '왕들은 모두 처음에 무엇이었나. 그들을 그들답게 끝낸 자라면, 마을의 가장 늙은 말이 무언가 털어놓을지도…',
+    stayLine: '옥좌에서 내려와 다시 걷는다. 그 자리는 아직 비워 둔다.',
   },
   closed: {
     name: '덮인 기보',
@@ -127,6 +135,7 @@ export async function playEnding(app: App, forced?: EndingId) {
   if (rewriteOpen()) choices.push({ label: '처음부터 다시 쓴다', note: '???', tag: 'neutral', onPick: () => choose('rewrite') });
   if (togetherOpen()) choices.push({ label: '우리의 이름을 함께 적는다', note: '???', onPick: () => void togetherTalk().then(() => choose('together')) });
   if (penOpen()) choices.push({ label: '펜을 빼앗는다', note: '???', tag: 'dark', onPick: () => void penTalk().then(() => choose('pen')) });
+  if (throneOpen()) choices.push({ label: '끝을 적지 않고 옥좌로 돌아간다', note: '???', tag: 'dark', onPick: () => void throneTalk().then(() => choose('throne')) });
   if (closedOpen()) choices.push({ label: '펜을 저자에게 돌려준다', note: '???', onPick: () => choose('closed') });
   dialog('저자', '"이 대국을 어떻게 끝낼 텐가?"', choices, { sprite: 'm:author', speaker: '저자', noClose: true });
 }
@@ -141,6 +150,10 @@ const togetherTalk = () => {
     ['"잠깐, 혼자 적으려고? 약속했잖아."', '맞다. 같이 적자.'],
   ]);
 };
+const throneTalk = () => talkChain('저자', 'm:author', [
+  ['"…그 늙은 킹한테 들었군. 그래, 다들 너처럼 왔다. 그리고 다들 끝 줄에서 멈췄지. 내가 펜을 놓은 건 그 왕들을 더는 만들고 싶지 않아서였다."', '그래도 누군가는 기다려 줘야 해.'],
+  ['"다음 폰이 너를 쓰러뜨리러 올 거다. 네가 밀짚왕을 쓰러뜨렸듯이. 그래도 가겠나?"', '그 폰이 끝까지 가게, 첫 벽이 되어 줄게.'],
+]);
 const penTalk = () => talkChain('저자', 'm:author', [
   ['"그 펜을 쥘 만한지 보자고 했었지."', '그건 내가 정한다고 했잖아.'],
   ['"펜을 쥐면 끝을 적어야 해. 그게 얼마나 무서운지 곧 알게 될 거다."', '(펜을 빼앗는다)'],
