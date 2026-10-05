@@ -11,7 +11,7 @@ export const easeOutBack: Ease = (t) => {
 
 interface Tween { el: number; dur: number; fn: (p: number) => void; ease: Ease; done: () => void }
 export interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; size: number; color: string; grav: number; shape: 'dot' | 'chip' | 'spark' }
-export interface FloatText { x: number; y: number; text: string; color: string; life: number; max: number; big?: boolean }
+export interface FloatText { x: number; y: number; text: string; color: string; life: number; max: number; big?: boolean; /** 글자 크기 (칸 크기 대비, 없으면 big에 따라 0.42 / 0.3) */ size?: number }
 
 class FX {
   tweens: Tween[] = [];
@@ -60,8 +60,9 @@ class FX {
     }
   }
 
-  text(x: number, y: number, text: string, color = '#fff', big = false) {
-    this.texts.push({ x, y, text, color, life: 900, max: 900, big });
+  /** 떠오르는 글씨. life = 보이는 시간(ms), size = 칸 크기 대비 글자 크기 */
+  text(x: number, y: number, text: string, color = '#fff', big = false, life = 900, size?: number) {
+    this.texts.push({ x, y, text, color, life, max: life, big, size });
   }
 
   update(dt: number) {

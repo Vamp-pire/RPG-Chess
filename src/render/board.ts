@@ -268,10 +268,11 @@ export class Renderer {
     for (const tx of fx.texts) {
       const a = Math.min(1, tx.life / 300);
       ctx.globalAlpha = a;
-      ctx.font = `bold ${tx.big ? Math.round(ts * 0.42) : Math.round(ts * 0.3)}px "IBM Plex Sans KR", sans-serif`;
+      const fpx = Math.round(ts * (tx.size ?? (tx.big ? 0.42 : 0.3)));
+      ctx.font = `bold ${fpx}px "IBM Plex Sans KR", sans-serif`;
       ctx.textAlign = 'center';
-      // 노란 옥좌·보라 탑 판 위에서도 읽히게: 두꺼운 어두운 테두리 + 그림자 (베타 제보: '소환'·'무르기' 글씨가 묻힘)
-      ctx.lineWidth = Math.max(5, ts * 0.08);
+      // 노란 옥좌·보라 탑 판 위에서도 읽히게: 두꺼운 어두운 테두리 + 그림자 (베타 제보: '소환'·'무르기' 글씨가 묻힘). 작은 글씨는 테두리도 얇게
+      ctx.lineWidth = Math.min(Math.max(5, ts * 0.08), Math.max(3, fpx * 0.27));
       ctx.lineJoin = 'round';
       ctx.strokeStyle = 'rgba(12,10,8,0.95)';
       ctx.shadowColor = 'rgba(0,0,0,0.7)';
@@ -435,12 +436,17 @@ export class Renderer {
             ctx.font = `800 ${fsz}px 'IBM Plex Sans KR', sans-serif`;
             ctx.textAlign = 'center';
             const bw = fsz * 1.9;
+            const bh = fsz * 1.25;
             ctx.fillStyle = 'rgba(255,140,40,0.92)';
             ctx.beginPath();
-            ctx.roundRect(px + 3, py + 3, bw, fsz * 1.25, 5); // 왼쪽 위 (오른쪽 위는 예고 피해 숫자 자리)
+            ctx.roundRect(px + 3, py + 3, bw, bh, 5); // 왼쪽 위 (오른쪽 위는 예고 피해 숫자 자리)
             ctx.fill();
             ctx.fillStyle = '#1a0e04';
-            ctx.fillText(m.label, px + 3 + bw / 2, py + 3 + fsz * 0.95);
+            // 기준선을 직접 정한다 (앞서 그린 표시의 'top'이 남아 글자가 배지 아래로 밀려 나가던 것)
+            const prevBase = ctx.textBaseline;
+            ctx.textBaseline = 'middle';
+            ctx.fillText(m.label, px + 3 + bw / 2, py + 3 + bh / 2 + 1);
+            ctx.textBaseline = prevBase;
           }
           break;
         }

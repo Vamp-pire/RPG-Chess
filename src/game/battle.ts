@@ -1529,7 +1529,7 @@ export class Battle {
       u.unhitTurns = 0;
       u.retaliating = true;
       u.ent.glow = 'rgba(255,174,92,0.7)';
-      fx.text(u.x + 0.5, u.y - 0.25, `반격 태세 ${Math.round(chance * 100)}%`, '#ffbf7a', true);
+      fx.text(u.x + 0.5, u.y - 0.25, `반격 태세 ${Math.round(chance * 100)}%`, '#ffbf7a', false, 2400, 0.17);
     }
   }
 
