@@ -1,8 +1,6 @@
 ﻿import { KING, ORTH, Vec, cheb, eq, key, manh, pick, shuffle, sign } from '../core/geom';
 import { Grid, MoveRule, Targets, genTargets } from '../core/rules';
 import { G, HP_MUL, Loadout, emit, equipped, loadout, maxHp, tier } from '../core/state';
-import { BAL, HEAVY, MASTERY_KILLS } from '../core/balance';
-import { MATS } from '../data/materials';
 import { ABILITIES } from '../data/materials';
 import { AREAS, EncDef, TENSION } from '../data/areas';
 import { MOBS, MobId } from '../data/mobs';
@@ -143,19 +141,6 @@ export class Battle {
     this.placeEnemyTerrain();
     this.lo = loadout();
     this.sharp = (this.lo.traits.sharp ?? 0) + (perk('first') ? 1 : 0);
-    // 강화 단계 보상: 무기 +2부터 날카로움 +1
-    const w0 = equipped('weapon');
-    if (BAL.enhance && w0 && w0.level >= 2) this.sharp++;
-    // 충전식 변형: 전투마다 처음 몇 번만 +1
-    if (BAL.enhanceCharge && w0) this.sharp += (w0.level >= 2 ? 1 : 0) + (w0.level >= 3 ? 1 : 0);
-    if (BAL.masteryCharge && w0 && (w0.kills ?? 0) >= MASTERY_KILLS) this.sharp += BAL.masteryN;
-    if (BAL.powerCharge && w0) {
-      const tot = Object.entries(w0.mats).filter(([id, n]) => n && !MATS[id as keyof typeof MATS].binder).reduce((t, [, n]) => t + (n ?? 0), 0);
-      const hv = HEAVY.reduce((t, id) => t + (w0.mats[id as keyof typeof w0.mats] ?? 0), 0);
-      if (tot && hv / tot >= 0.4 && (enc.boss || enc.enemies.some((e) => MOBS[e.m].hp >= 7))) this.sharp += 2;
-    }
-    // 충전(처음 몇 번 +1)은 전투당 최대 chargeCap번
-    this.sharp = Math.min(this.sharp, BAL.chargeCap);
     this.dodge = this.lo.traits.light ?? 0;
     this.sturdy = (this.lo.traits.sturdy ?? 0) + (perk('brace') ? 1 : 0);
     this.stickyLeft = this.lo.traits.sticky ?? 0;
@@ -272,9 +257,7 @@ export class Battle {
     const reg = AREAS[G.area]?.region ?? 1;
     const isBoss = d.ai === 'boss' || d.ai === 'queen';
     const scale = minion || isBoss || reg < 2 ? 1 : reg === 2 ? (big ? 0.9 : 0.75) : big ? 0.85 : 0.7;
-    // 실험 옵션: 적 체력 배율 (음수 = 지역별 1지역 ×2 · 2지역 ×2.5 · 3·4지역 ×3)
-    const mul = minion ? 1 : BAL.hpMul < 0 ? (reg >= 3 ? 3 : reg === 2 ? 2.5 : 2) : BAL.hpMul;
-    const hp = HP_MUL * Math.max(1, Math.round((d.hp + bonus + tension) * scale * mul) + (shiny ? 1 : 0));
+    const hp = HP_MUL * Math.max(1, Math.round((d.hp + bonus + tension) * scale) + (shiny ? 1 : 0));
     const sprite = m === 'rook' ? 'p:br' : `m:${m}`;
     const u: BUnit = { uid: UID++, mob: m, x, y, hp, maxHp: hp, atk: d.atk, intent: null, stun: 0, shiny, ent: mkEnt(`u${UID}`, sprite, x, y, { hp, maxHp: hp, bob: true, ...(shiny ? { glow: 'rgba(255,214,90,0.55)' } : {}) }) };
     if (shiny) {
@@ -604,21 +587,6 @@ export class Battle {
     });
   }
 
-  /** 무기에서 오는 추가 피해 (공격력 성장 방안: 강화 +3 / 숙련 / 위력) */
-  private weaponBonus(u: BUnit): number {
-    const w = equipped('weapon');
-    if (!w) return 0;
-    let b = 0;
-    if (BAL.enhance && w.level >= 3) b++;
-    if (BAL.mastery && (w.kills ?? 0) >= MASTERY_KILLS) b++;
-    if (BAL.power && u.maxHp >= 3) {
-      const total = Object.entries(w.mats).filter(([id, n]) => n && !MATS[id as keyof typeof MATS].binder).reduce((s, [, n]) => s + (n ?? 0), 0);
-      const heavy = HEAVY.reduce((s, id) => s + (w.mats[id as keyof typeof w.mats] ?? 0), 0);
-      if (total && heavy / total >= 0.4) b++;
-    }
-    return b;
-  }
-
   /** 보스전 포기: 패배와 같게 처리 */
   giveUp() {
     if (this.busy || this.over) return;
@@ -740,7 +708,7 @@ export class Battle {
 
   // ---------- 아군 행동 ----------
   private async allyAttack(a: BUnit, u: BUnit) {
-    let dmg = (a.ally === 'hero' ? 1 : a.atk) * BAL.baseDmg;
+    let dmg = a.ally === 'hero' ? 1 : a.atk;
     const isHero = a.ally === 'hero';
     // 반격 태세: 맞기 전에 기억해 둔다 (맞으면 dmgEnemy가 태세를 푼다)
     const stance = isHero && !!u.retaliating;
@@ -755,7 +723,7 @@ export class Battle {
     // 사격: 3 피해(명사수 +1), 쏜 다음 두 턴 재장전, 쓰러뜨려도 그 칸으로 들어가지 않는다
     if (this.isShot(a, u)) {
       let shotDead = false;
-      const shotDmg = 3 * BAL.baseDmg + (perk('shot') ? 1 : 0);
+      const shotDmg = 3 + (perk('shot') ? 1 : 0);
       await this.shootFx(a, u, () => { shotDead = this.dmgEnemy(u, shotDmg, 1); }); // 사격은 멀리서 치는 것이라 1배
       this.gunReload = 3; // 이번 턴 끝에 1 줄어, 다음 두 턴 동안 못 쏜다
       if (shotDead) await this.kill(u, false, 'shot');
@@ -763,22 +731,10 @@ export class Battle {
       await this.checkPhase();
       return;
     }
-    // 날카로움 Lv3(방안 E)이면 항상 +1, 아니면 전투마다 처음 N번 +1
-    const sharpPerm = BAL.sharpPerm && (this.lo.traits.sharp ?? 0) >= 3;
-    if (isHero && sharpPerm) dmg++;
-    else if (isHero && this.sharp > 0) {
+    // 날카로움: 전투마다 처음 N번 +1
+    if (isHero && this.sharp > 0) {
       dmg++;
       this.sharp--;
-    }
-    if (isHero) dmg += this.weaponBonus(u);
-    // 압축한 무기 행마로 쳤다면 그 행마의 추가 피해 (여러 행마가 닿으면 가장 큰 것)
-    if (isHero) {
-      let rb = 0;
-      for (const r of this.rulesOf(a)) {
-        if (!r.dmg || r.dmg <= rb) continue;
-        if (genTargets([r], [a.x, a.y], this.allyGrid(a)).attacks.some((p) => p[0] === u.x && p[1] === u.y)) rb = r.dmg;
-      }
-      if (rb) { dmg += rb; fx.text(a.x + 0.5, a.y - 0.3, `압축 +${rb}`, '#ffb27a'); }
     }
     // 고지에서 내려치면 +1
     if (this.tileAt(a.x, a.y) === 'high') {
@@ -880,10 +836,7 @@ export class Battle {
     u.hp = 0;
     if (['melee', 'knight', 'shot'].includes(how)) {
       const w = equipped('weapon');
-      if (w) {
-        w.kills = (w.kills ?? 0) + 1;
-        if (BAL.mastery && w.kills === MASTERY_KILLS) fx.text(this.hero.x + 0.5, this.hero.y - 0.3, '무기 숙련!', '#ffd65a', true);
-      }
+      if (w) w.kills = (w.kills ?? 0) + 1;
     }
     const d = MOBS[u.mob!];
     // 해골 기사: 첫 죽음은 무너질 뿐, 곧 다시 일어난다

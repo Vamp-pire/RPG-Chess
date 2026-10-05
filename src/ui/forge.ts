@@ -1,9 +1,8 @@
-import { BAL } from '../core/balance';
 // 대장간: 조합 / 강화 (강조 등급 연출)
 import { SETS, SET_NEED, familiesOf, setCounts } from '../core/sets';
 import { sfx } from '../core/sfx';
 import { perk } from '../game/rewards';
-import { ARMOR_TRAIT_MIN, FRAG_MIN, ITEM_MAX_LEVEL, Item, ItemStats, MIN_CORE, Mats, SLOTS, SLOT_INFO, Shape, Slot, TRAIT_MIN, compressBonus, computeItem, shapePicks, slideRangeFor, itemStats, mergeMats, totalOf } from '../core/items';
+import { ARMOR_TRAIT_MIN, FRAG_MIN, ITEM_MAX_LEVEL, Item, ItemStats, MIN_CORE, Mats, SLOTS, SLOT_INFO, Slot, TRAIT_MIN, computeItem, itemStats, mergeMats, totalOf } from '../core/items';
 import { MoveRule, describeRule, dirName, previewPattern } from '../core/rules';
 import { G, baseRules, emit, equipped, hasJob, loadout, log, matHave, save, spendMats } from '../core/state';
 import { ABILITIES, MATS, MAT_ORDER, MatId, TRAITS } from '../data/materials';
@@ -170,14 +169,12 @@ export function hideTip() {
   tipEl = null;
 }
 
-const ARROW = (dx: number, dy: number) => (Math.abs(dx) + Math.abs(dy) === 3 ? `${dx > 0 ? '→' : '←'}${dy > 0 ? '↓' : '↑'}` : ({ '0,-1': '↑', '0,1': '↓', '-1,0': '←', '1,0': '→', '-1,-1': '↖', '1,-1': '↗', '-1,1': '↙', '1,1': '↘' } as Record<string, string>)[`${Math.sign(dx)},${Math.sign(dy)}`] ?? '•');
 
 export function openForge(onChange: () => void, opts: { craftOnly?: boolean } = {}) {
   let tab: 'craft' | 'enhance' = 'craft';
   let slot: Slot = SLOTS.find((s) => !G.equip[s]) ?? 'weapon';
   let sel: Mats = {};
   let enhId: number | null = null;
-  let shape: Shape = {}; // 무기 행마의 방향 고르기·압축 (재료별)
   // 부위는 늘 직접 고른다 (재료 개수로 부위가 정해지던 숙련 제작은 베타 의견으로 없앴다)
   let focus: MatId | null = null; // 인벤토리에서 마지막으로 가리킨 재료 (아래 설명 줄)
   const root = h('div', { class: 'forge' });
@@ -224,7 +221,7 @@ export function openForge(onChange: () => void, opts: { craftOnly?: boolean } = 
       for (const it of items) {
         const s = itemStats(it);
         const b = h('button', { class: `enh-item ${enhId === it.id ? 'on' : ''}` }, h('b', {}, s.name), h('small', {}, SLOT_INFO[it.slot].name));
-        b.addEventListener('click', () => { enhId = it.id; sel = {}; shape = { ...(it.shape ?? {}) }; render(); });
+        b.addEventListener('click', () => { enhId = it.id; sel = {}; render(); });
         list.append(b);
       }
       left.append(h('div', { class: 'sub' }, '강화할 장비'), h('p', { class: 'hint enh-how' }, '💡 재료를 1개만 더 넣어도 강화돼요. 넣은 재료까지 합쳐 비율을 다시 계산하고, 처음 8개 한도를 넘어 더 넣을 수 있어요. 망치질하면 품질도 한 번 더 붙어요.'), list);
@@ -322,14 +319,14 @@ export function openForge(onChange: () => void, opts: { craftOnly?: boolean } = 
     if (tab === 'enhance') {
       const it = G.items.find((i) => i.id === enhId)!;
       const before = itemStats(it);
-      stats = computeItem(it.slot, mergeMats(it.mats, sel), it.quality, it.slot === 'weapon' ? shape : undefined);
+      stats = computeItem(it.slot, mergeMats(it.mats, sel), it.quality);
       stats.name = `${stats.name} +${it.level + 1}`;
       cost = 15 * (it.level + 1);
       const gain = newSquares(before.rules, stats.rules);
       if (totalOf(sel)) right.append(h('p', { class: 'enh-gain' }, gain ? `이번 강화로 새로 닿는 칸 +${gain}` : '이번 강화로 새로 닿는 칸은 없어요 (특성·비율만 바뀌어요)'));
       right.append(h('div', { class: 'cmp' }, h('div', {}, h('div', { class: 'muted small' }, '지금'), h('b', {}, before.name), statsView(before, false)), h('div', { class: 'arrow' }, '→'), h('div', {}, h('div', { class: 'muted small' }, '강화 후'), h('b', {}, stats.name), statsView(stats, true))));
     } else {
-      stats = computeItem(cs, sel, alch(), cs === 'weapon' ? shape : undefined);
+      stats = computeItem(cs, sel, alch());
       const cur = equipped(cs);
       // 숨은 무기(총)는 처음 만들기 전까지 정체를 보여 주지 않는다
       const secret = stats.rules.some((r) => r.gun) && !G.flags.gun_known;
@@ -367,73 +364,6 @@ export function openForge(onChange: () => void, opts: { craftOnly?: boolean } = 
         for (const f of fam) right.append(h('p', { class: `small set-hint ${(after[f] ?? 0) >= SET_NEED ? 'on' : ''}` }, `세트: ${SETS[f].name} — 장착하면 ${Math.min(after[f] ?? 0, SET_NEED)}/${SET_NEED}${(after[f] ?? 0) >= SET_NEED ? ` ✓ ${SETS[f].desc}` : ''}`));
       }
     }
-    // 한 방향 집중: 무기 행마 재료마다 방향을 꼭 하나 고른다 (+ 원하면 칸 수를 줄여 압축) → 그 행마로 칠 때 피해 +
-    let needDir = false;
-    if (cs === 'weapon' && BAL.compress) {
-      const src = tab === 'enhance' ? mergeMats(G.items.find((i) => i.id === enhId)!.mats, sel) : sel;
-      const full = computeItem('weapon', src, 0); // 압축 전 모양 (방향 목록·칸 수 기준)
-      const frags = full.shares.filter((x) => MATS[x.id].frag && x.share >= FRAG_MIN).slice(0, 2);
-      if (frags.length) {
-        const box = h('div', { class: 'shape-box' }, h('div', { class: 'sub' }, '한 방향 집중 — 행마 재료 한 개마다 방향을 하나씩 골라요. 같은 방향을 여러 번 고르면 그쪽이 길어져요'));
-        for (const fr of frags) {
-          const f = MATS[fr.id].frag!;
-          const fullRule = full.rules.find((r) => r.kind === f.kind && r.dirs === f.dirs) ?? full.rules.find((r) => r.kind === f.kind);
-          const fullRange = f.kind === 'slide' ? fullRule?.range ?? f.range : 1;
-          const cur = shape[fr.id] ?? {};
-          const picks = shapePicks(cur, fr.n).filter((d) => f.dirs[d]);
-          const left = fr.n - picks.length;
-          if (left > 0) needDir = true;
-          const cnt = new Map<number, number>();
-          for (const d of picks) cnt.set(d, (cnt.get(d) ?? 0) + 1);
-          const caps = { ...(cur.caps ?? {}) };
-          const setPicks = (p: number[], c = caps) => { shape = { ...shape, [fr.id]: { picks: p, caps: c } }; render(); };
-          const groups = [...cnt].map(([d, c]) => {
-            const max = f.kind === 'slide' ? slideRangeFor(f.range, c) : 1;
-            return { d, c, max, r: f.kind === 'slide' && caps[d] ? Math.max(1, Math.min(max, caps[d])) : max };
-          });
-          const bonus = picks.length ? compressBonus(f.dirs.length * fullRange, groups.reduce((t, g) => t + g.r, 0)) : 0;
-          // 작은 판: 가운데가 내 말. 방향 칸을 누를 때마다 재료 한 개를 그쪽에 (다 고른 뒤 누르면 그 방향에서 하나 빼기)
-          const rad = Math.max(...f.dirs.map(([dx, dy]) => Math.max(Math.abs(dx), Math.abs(dy))));
-          const n = rad * 2 + 1;
-          const pad = h('div', { class: 'shape-pad', style: { gridTemplateColumns: `repeat(${n}, 1fr)` } });
-          for (let y = -rad; y <= rad; y++) {
-            for (let x = -rad; x <= rad; x++) {
-              const di = f.dirs.findIndex(([dx, dy]) => dx === x && dy === y);
-              if (x === 0 && y === 0) { pad.append(h('span', { class: 'shape-me' }, '♙')); continue; }
-              if (di < 0) { pad.append(h('span', { class: 'shape-off' })); continue; }
-              const c = cnt.get(di) ?? 0;
-              const b = h('button', { class: `shape-dir ${left > 0 ? 'on' : ''} ${c ? 'picked' : ''}`, title: left > 0 ? '이 방향에 재료 하나' : c ? '이 방향에서 하나 빼기' : '' }, c > 1 ? String(c) : '');
-              b.addEventListener('click', () => {
-                if (left > 0) setPicks([...picks, di]);
-                else if (c) { const i = picks.lastIndexOf(di); const p = picks.filter((_, j) => j !== i); const nc = { ...caps }; if (c === 1) delete nc[di]; setPicks(p, nc); }
-              });
-              pad.append(b);
-            }
-          }
-          const reset = h('button', { class: 'btn small', disabled: !picks.length }, '다시 고르기');
-          reset.addEventListener('click', () => setPicks([], {}));
-          const ctl = h('div', { class: 'shape-ctl' },
-            h('span', { class: left > 0 ? 'shape-need' : 'muted small' }, left > 0 ? `방향 ${left}개 더 골라 주세요 (${picks.length}/${fr.n})` : `${fr.n}개 모두 골랐어요`), reset);
-          // 미끄러지는 행마: 방향마다 칸 수를 원하면 더 줄이기 (압축, 선택)
-          if (f.kind === 'slide') {
-            for (const g of groups) {
-              const [dx, dy] = f.dirs[g.d];
-              const minus = h('button', { class: 'btn small', disabled: g.r <= 1 }, '−');
-              const plus = h('button', { class: 'btn small', disabled: g.r >= g.max }, '+');
-              minus.addEventListener('click', () => setPicks(picks, { ...caps, [g.d]: g.r - 1 }));
-              plus.addEventListener('click', () => { const nc = { ...caps }; if (g.r + 1 >= g.max) delete nc[g.d]; else nc[g.d] = g.r + 1; setPicks(picks, nc); });
-              ctl.append(h('span', { class: 'shape-range' }, h('span', { class: 'shape-arrow' }, ARROW(dx, dy)), minus, h('b', {}, `${g.r}칸`), plus));
-            }
-          }
-          box.append(h('div', { class: 'shape-row' },
-            h('div', { class: 'shape-name' }, matIcon(fr.id, 20), h('b', {}, `${MATS[fr.id].name} ×${fr.n}`)),
-            pad, ctl,
-            h('span', { class: `shape-bonus ${bonus ? 'on' : ''}` }, !picks.length ? '—' : bonus ? `피해 +${bonus}` : '추가 피해 없음')));
-        }
-        box.append(h('p', { class: 'hint small' }, '피해: 이 재료가 원래 닿던 칸 수와 비교해 남은 칸이 1칸이면 +2, 3분의 1 이하면 +1. 미끄러지는 행마는 같은 방향에 1개 더할 때마다 1칸 길어지고, −로 더 줄여 압축할 수 있어요. 고른 방향은 장비에 기억되고, 강화로 재료를 더 넣으면 그만큼 더 골라요.'));
-        right.append(box);
-      }
-    }
     // 비율이 모자라 효과가 안 붙는 재료: 빨간 경고 대신 '몇 개 더 넣으면 붙는지' 알려 준다 (베타 의견: 빨간 글씨만 4줄)
     if (cs) {
       const src = tab === 'enhance' && enhId ? mergeMats(G.items.find((i) => i.id === enhId)!.mats, sel) : sel;
@@ -459,7 +389,7 @@ export function openForge(onChange: () => void, opts: { craftOnly?: boolean } = 
     if (notes.length) right.append(h('ul', { class: 'notes' }, ...notes.map((n) => h('li', {}, n))));
 
     const coreN = totalOf(sel, false);
-    const ok = !needDir && (tab === 'enhance' ? totalOf(sel) >= 1 && G.gold >= cost : coreN >= MIN_CORE[cs] && totalOf(sel) >= 2);
+    const ok = (tab === 'enhance' ? totalOf(sel) >= 1 && G.gold >= cost : coreN >= MIN_CORE[cs] && totalOf(sel) >= 2);
     const row = h('div', { class: 'row gap f-actions' });
     const quick = h('button', { class: 'btn', disabled: !ok }, tab === 'enhance' ? `강화 (${cost}G)` : '바로 제작');
     const hammer = h('button', { class: 'btn primary', disabled: !ok }, '망치질하며 ', tab === 'enhance' ? '강화' : '제작', h('small', {}, ' 품질 ±1'));
@@ -469,7 +399,6 @@ export function openForge(onChange: () => void, opts: { craftOnly?: boolean } = 
     if (tab === 'enhance' && G.gold < cost) row.append(h('span', { class: 'muted small' }, '골드가 부족하다'));
     if (tab === 'craft' && G.equip[cs]) right.append(h('p', { class: 'warn-swap' }, `지금 낀 ${SLOT_INFO[cs].name}와(과) 바꿔 껴요. 전에 끼던 건 장비 창에 남아요.`));
     if (tab === 'craft' && coreN < MIN_CORE[cs]) row.append(h('span', { class: 'muted small' }, `${SLOT_INFO[cs].name}에는 섬유 말고 재료가 ${MIN_CORE[cs]}개 이상 필요해요 (지금 ${coreN}개)`));
-    if (needDir) row.append(h('span', { class: 'muted small' }, '행마 재료마다 방향을 하나 골라야 만들 수 있어요 (한 방향 집중)'));
     // 제작 버튼 줄은 창 맨 아래에 붙어 있다 (재료를 넣고 스크롤하지 않아도 바로 누를 수 있게)
     row.prepend(h('span', { class: 'f-count' }, tab === 'enhance' ? `더 넣을 재료 ${totalOf(sel)}개` : `넣은 재료 ${totalOf(sel)}/${MAX_MATS}`));
     root.append(row);
@@ -487,12 +416,11 @@ export function openForge(onChange: () => void, opts: { craftOnly?: boolean } = 
       if (tab === 'enhance') {
         it = G.items.find((i) => i.id === enhId)!;
         it.mats = mergeMats(it.mats, sel);
-        if (it.slot === 'weapon') it.shape = { ...shape };
         it.quality += q;
         it.level++;
         G.gold -= cost;
       } else {
-        it = { id: G.nextId++, slot: cs!, mats: { ...sel }, quality: alch() + q, level: 0, ...(cs === 'weapon' && Object.keys(shape).length ? { shape: { ...shape } } : {}) };
+        it = { id: G.nextId++, slot: cs!, mats: { ...sel }, quality: alch() + q, level: 0 };
         G.items.push(it);
         // 새로 만든 장비는 바로 장착한다 (전에 끼던 장비는 장비 창에 남는다)
         replaced = G.equip[it.slot] ? itemStats(G.items.find((i) => i.id === G.equip[it.slot])!).name : null;

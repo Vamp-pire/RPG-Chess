@@ -17,8 +17,6 @@ export interface MoveRule {
    * 말이나 벽이 있으면 그 방향으로는 갈 수도 칠 수도 없다
    */
   leg?: boolean;
-  /** 압축한 무기 행마: 이 행마로 칠 때 추가 피해 */
-  dmg?: number;
 }
 
 export type Occ = 'enemy' | 'block' | null;

@@ -42,11 +42,9 @@ Promise.all([loadPieceImages(), loadArt()]).then(() => {
   }
   if (import.meta.env.DEV) {
     import('./dev/sim').then((sim) => Object.assign(window, { sim }));
-    import('./core/balance').then((b) => Object.assign(window, { BAL: b.BAL }));
     import('./dev/play').then((m) => Object.assign(window, { P: m.makePlayer(app) }));
     // 개발 전용 비밀키 (admingoooo → 모두 해금). 배포판에는 들어가지 않는다
     import('./dev/cheat').then((m) => m.installCheat(app));
-    import('./dev/experiments').then((m) => Object.assign(window, { exp: m }));
     // 개발용: 화면이 숨겨져 rAF가 멈춘 환경에서도 애니메이션을 진행시킨다
     Object.assign(window, {
       app,

@@ -1,5 +1,4 @@
-﻿import { BAL, BAL_DEFAULT } from '../core/balance';
-import { RUN_RULES, runRule } from './runrules';
+﻿import { RUN_RULES, runRule } from './runrules';
 import { bossIntro, bossMemory, chapterEnd, chapterStart, companionTalk, talkChain, townRumor } from './story';
 import { takeBetaGift, isClosedTester } from '../core/release';
 import { Mood, setMood } from '../core/bgm';
@@ -143,7 +142,6 @@ export class App {
   // ---------- 타이틀 ----------
   title() {
     this.mode = 'title';
-    Object.assign(BAL, BAL_DEFAULT); // 실험 규칙(개발 도구로만 켬)은 제목 화면에서 늘 꺼진다
     setMood('title');
     document.body.classList.add('at-title');
     const cont = hasSave();

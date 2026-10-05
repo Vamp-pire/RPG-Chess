@@ -716,22 +716,6 @@ button.qline.tracked { background: #2b2213; }
 .epi-card p { margin: 4px 0 0; font-size: 12.5px; line-height: 1.6; color: #e9dcc0; }
 
 /* 대장간: 무기 행마 방향 고르기·압축 */
-.shape-box { margin: 8px 0; padding: 8px 10px; border: 1px dashed #c98a4a; border-radius: 10px; background: rgba(201,138,74,.07); display: grid; gap: 8px; }
-.shape-row { display: grid; grid-template-columns: auto auto 1fr auto; align-items: center; gap: 10px; }
-.shape-name { display: grid; justify-items: center; gap: 2px; font-size: 11px; }
-.shape-pad { display: grid; gap: 2px; width: 90px; }
-.shape-pad > * { aspect-ratio: 1; border-radius: 3px; }
-.shape-off { background: rgba(255,255,255,.04); }
-.shape-me { display: grid; place-items: center; font-size: 12px; color: #f2e6cc; background: rgba(255,255,255,.08); }
-.shape-dir { padding: 0; border: 1px solid #5a4a36; background: #2a241c; cursor: pointer; }
-.shape-dir.on { background: #7a5a2a; border-color: #c98a4a; }
-.shape-dir.picked { background: #e8a24a; border-color: #ffd08a; box-shadow: 0 0 6px rgba(255,190,100,.6); }
-.shape-dir:hover { border-color: #ffd08a; }
-.shape-ctl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.shape-ctl .btn.on { border-color: var(--gold); color: #ffe7a3; }
-.shape-range { display: inline-flex; align-items: center; gap: 4px; }
-.shape-bonus { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
-.shape-bonus.on { color: #ffb27a; font-weight: 700; }
 
 /* 실험 옵션 (클로즈드 베타) */
 .exp-box { border-color: #6a5a8a; background: rgba(110,90,150,.08); gap: 6px; }
@@ -742,12 +726,7 @@ button.qline.tracked { background: #2b2213; }
 .exp-row small { color: var(--muted); line-height: 1.45; }
 .exp-chip { margin-left: 8px; font-size: 11px; font-family: var(--sans); font-weight: 700; color: #e6d4ff; background: rgba(120,90,170,.3); border: 1px solid #8a6ad0; border-radius: 999px; padding: 1px 8px; vertical-align: middle; }
 
-.shape-need { font-size: 12px; color: #ffb27a; font-weight: 700; }
-.shape-range b { white-space: nowrap; }
 
-.shape-dir { font-size: 11px; font-weight: 700; color: #2a1a08; line-height: 1; }
-.shape-arrow { min-width: 1.6em; text-align: center; color: #ffd08a; }
-.shape-ctl { flex-direction: column; align-items: flex-start; }
 
 /* 개발 검토용 전장 지형 갤러리 */
 #gallery { min-height: 100dvh; padding: 28px; background: #17130f; color: var(--ink); font-family: var(--sans); }

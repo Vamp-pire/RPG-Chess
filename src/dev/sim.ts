@@ -7,7 +7,7 @@ import { MobId } from '../data/mobs';
 import { PieceId } from '../data/pieces';
 import { fx } from '../render/fx';
 import type { App } from '../game/app';
-import { Item, Mats, Slot, Shape } from '../core/items';
+import { Item, Mats, Slot } from '../core/items';
 import { strongTurn } from './bot2';
 
 type B = NonNullable<App['battle']>;
@@ -92,7 +92,7 @@ export async function runBattle(app: App, enc: EncDef, maxTurns = 80, bot: BotKi
   return { win: result === 'win', lose: result === 'lose', turns: b.turn, hpLeft: G.hp, dmg: b.dmgTaken };
 }
 
-export interface Setup { piece: PieceId; items?: [Slot, Mats, number?, number?, Shape?][]; promoted?: boolean; promoted2?: boolean; party?: ('soldier' | 'ghostknight' | 'priest')[]; progress?: number; hpFrac?: number; flags?: Record<string, boolean>; bonusHp?: number; diff?: 'easy' | 'normal' | 'hard'; area?: AreaId }
+export interface Setup { piece: PieceId; items?: [Slot, Mats, number?, number?][]; promoted?: boolean; promoted2?: boolean; party?: ('soldier' | 'ghostknight' | 'priest')[]; progress?: number; hpFrac?: number; flags?: Record<string, boolean>; bonusHp?: number; diff?: 'easy' | 'normal' | 'hard'; area?: AreaId }
 
 export function setup(s: Setup) {
   newGame(s.piece, s.diff ?? 'normal');
@@ -104,7 +104,7 @@ export function setup(s: Setup) {
   G.party = s.party ?? [];
   G.progress = s.progress ?? 0;
   G.job = 'alchemist';
-  const items: Item[] = (s.items ?? []).map(([slot, mats, level, kills, shape], i) => ({ id: i + 1, slot, mats, quality: 0, level: level ?? 0, kills: kills ?? 0, ...(shape ? { shape } : {}) }));
+  const items: Item[] = (s.items ?? []).map(([slot, mats, level, kills], i) => ({ id: i + 1, slot, mats, quality: 0, level: level ?? 0, kills: kills ?? 0 }));
   G.items = items;
   for (const it of items) G.equip[it.slot] = it.id;
   G.hp = Math.max(1, Math.round(maxHp() * (s.hpFrac ?? 1)));
