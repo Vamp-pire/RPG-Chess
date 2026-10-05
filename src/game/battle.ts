@@ -8,7 +8,7 @@ import { COMPANIONS, CompanionId, PIECES } from '../data/pieces';
 import { Arrow, Ent, Mark, Scene, TileKind, mkEnt } from '../render/board';
 import { death, flash, hitFx, lunge, moveEnt, popIn, squash } from '../render/anim';
 import { easeInOut, easeOut, fx } from '../render/fx';
-import { clearCoach, coachNow, cutin, h, toast } from '../ui/dom';
+import { clearCoach, coachNow, cutin, h, toast, helpFold } from '../ui/dom';
 import { DIFFS } from '../core/difficulty';
 import { sfx } from '../core/sfx';
 import { perk } from './rewards';
@@ -62,6 +62,8 @@ type Mode = { t: 'ability'; i: number } | { t: 'heal' } | null;
 
 let UID = 1;
 export interface Frame { note: string; tiles: string; units: [string, number, number, number][] }
+/** 지형·판 표시 설명을 펼쳐 두는 전투 수 (그 뒤로는 접힘) */
+const HINT_BATTLES = 5;
 const WALKABLE = new Set<TileKind>(['floor', 'throne', 'bush', 'ice', 'high']);
 /** 엘리트 (빛나는 개체가 되지 않고, 어려움에서 체력이 늘어난다) */
 const ELITE = new Set<MobId>(['hound', 'bonelord', 'rook', 'blunder']);
@@ -139,6 +141,7 @@ export class Battle {
       for (const [x, y] of shuffle(spots).slice(0, 4)) this.tiles[y][x] = rr;
     }
     this.placeEnemyTerrain();
+    G.flags.hintBattles = Number(G.flags.hintBattles ?? 0) + 1;
     this.lo = loadout();
     this.sharp = (this.lo.traits.sharp ?? 0) + (perk('first') ? 1 : 0);
     this.dodge = this.lo.traits.light ?? 0;
@@ -1859,7 +1862,6 @@ export class Battle {
       f.addEventListener('click', () => this.flee());
       el.append(f);
     }
-    if (!this.lo.abilities.length && !this.hasGun && this.cur.ally !== 'priest') el.prepend(h('span', { class: 'act-hint' }, '각인·유물을 만들면 여기에 능력이 생겨요'));
   }
 
   renderPanel(el: HTMLElement) {
@@ -1918,9 +1920,14 @@ export class Battle {
     if (this.frost.length) list.append(h('p', { class: 'hint warn-text' }, '푸른 눈송이 칸 = 다음 적 턴에 서리 폭풍 (1 피해, 얼음이 된다).'));
     const flat = this.tiles.flat();
     const terr = [flat.includes('bush') ? '수풀: 멀리서 오는 공격을 막아 줘요(적도 같아요)' : '', flat.includes('ice') ? '얼음: 밟으면 한 칸 더 미끄러져요' : '', flat.includes('high') ? '고지: 여기서 공격하면 피해 +1(적도 같아요)' : ''].filter(Boolean);
-    if (this.enc.terrainName) list.append(h('p', { class: 'hint' }, `전장 지형 — ${this.enc.terrainName}: ${this.enc.terrainHint}`));
-    if (terr.length) list.append(h('p', { class: 'hint' }, `지형 — ${terr.join(' · ')}`));
+    // 늘 같은 설명(지형·판 표시)은 처음 몇 전투만 펼쳐 두고, 그 뒤로는 접어 둔다
+    const fresh = Number(G.flags.hintBattles ?? 0) <= HINT_BATTLES;
+    const fold = helpFold('battle', '지형·판 표시 설명', fresh,
+      ...(this.enc.terrainName ? [h('p', { class: 'hint' }, `전장 지형 — ${this.enc.terrainName}: ${this.enc.terrainHint}`)] : []),
+      ...(terr.length ? [h('p', { class: 'hint' }, `지형 — ${terr.join(' · ')}`)] : []),
+      h('p', { class: 'hint' }, '점은 이동할 수 있는 칸, 붉은 테두리는 공격할 수 있는 적이에요(×2 = 붙어서 치면 피해 2배). 붉게 깜빡이는 칸은 적이 다음에 공격할 자리예요.'));
+    if (fold) list.append(fold);
     el.append(list);
-    el.append(h('p', { class: 'hint' }, this.mode ? '파란 칸을 누르면 능력을 써요. 다른 곳을 누르면 취소돼요.' : '점은 이동할 수 있는 칸, 붉은 테두리는 공격할 수 있는 적이에요. 붉게 깜빡이는 칸은 적이 다음에 공격할 자리예요.'));
+    if (this.mode) el.append(h('p', { class: 'hint' }, '파란 칸을 누르면 능력을 써요. 다른 곳을 누르면 취소돼요.'));
   }
 }

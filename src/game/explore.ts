@@ -56,6 +56,9 @@ export interface ExploreHooks {
 let RID = 1;
 const SIDES: Side[] = ['n', 'e', 's', 'w'];
 
+/** 탐험 판에서 몹이 한 걸음마다 움직일 확률 (떠도는 몹·쫓는 몹 모두) */
+const MOB_MOVE_CHANCE = 0.12;
+
 export class Explore {
   area!: AreaDef;
   mobs: RMob[] = [];
@@ -226,8 +229,6 @@ export class Explore {
       } else if (!path && cheb(gd.pos, G.pos) > 1) arrows.push({ from: G.pos, to: gd.pos, color: 'rgba(230,170,30,0.45)' });
     }
     this.scene.arrows = arrows;
-    // 몹 바로 옆 칸: 여기 서면 자동 이동이 멈추고, 몹이 내 칸으로 오면 싸움이 걸린다 (베타 제보: 규칙을 모르겠다)
-    for (const m of this.mobs) for (const [dx, dy] of KING) { const x = m.x + dx, y = m.y + dy; if (x >= 0 && y >= 0 && x < 8 && y < 8 && !this.blockedTile(x, y) && !this.mobAt(x, y)) marks.push({ x, y, kind: 'blur' }); }
     if (!this.busy) {
       for (const [x, y] of this.targets.moves) marks.push({ x, y, kind: 'move' });
       for (const [x, y] of this.targets.attacks) marks.push({ x, y, kind: 'attack' });
@@ -491,7 +492,9 @@ export class Explore {
     const blocked = (x: number, y: number) => x < 0 || y < 0 || x > 7 || y > 7 || this.blockedTile(x, y) || !!this.objAt(x, y) || !!this.mobAt(x, y);
     for (const m of this.mobs) {
       let to: Vec | null = null;
-      if (m.mover === 'wander' && Math.random() < 0.5) {
+      // 탐험 판의 몹은 아주 가끔만 움직인다 (판이 덜 어수선하게)
+      if (Math.random() >= MOB_MOVE_CHANCE) continue;
+      if (m.mover === 'wander') {
         const opts = ORTH.map(([dx, dy]) => [m.x + dx, m.y + dy] as Vec).filter(([x, y]) => eq([x, y], P) || !blocked(x, y));
         if (opts.length) to = pick(opts);
       } else if (m.mover === 'chase' && cheb([m.x, m.y], P) <= 4) {

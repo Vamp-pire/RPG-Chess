@@ -189,7 +189,35 @@ export function coach(text: string, id: string, opts: { act?: string; el?: strin
     : h('span', {}, text);
   const el = h('div', { class: `coach ${opts.act ? 'quest' : ''}`, 'data-tip': id, role: 'status', 'aria-live': 'polite' }, h('span', { class: 'coach-ico' }, opts.act ? '👆' : '💡'), body);
   document.body.append(el);
+  placeCoach(el);
   setTimeout(applyCoachFocus, 60);
+}
+
+/**
+ * 첫 안내 말풍선 자리: 옆 패널이 판 오른쪽에 있는 넓은 화면에서는 옆 패널 아래쪽에 붙여
+ * 판(아랫줄의 주인공·전투 행동 줄)을 가리지 않게 한다. 위아래로 쌓이는 좁은 화면은 그대로 화면 아래.
+ */
+function placeCoach(el: HTMLElement) {
+  const side = document.getElementById('side')?.getBoundingClientRect();
+  const board = document.getElementById('board')?.getBoundingClientRect();
+  const besideBoard = !!side && !!board && side.width >= 240 && side.left >= board.right - 4 && !document.body.classList.contains('at-title');
+  el.classList.toggle('side', besideBoard);
+  el.style.left = besideBoard ? `${side!.left + 8}px` : '';
+  el.style.width = besideBoard ? `${side!.width - 16}px` : '';
+}
+window.addEventListener('resize', () => document.querySelectorAll<HTMLElement>('.coach').forEach(placeCoach));
+
+/**
+ * 접을 수 있는 설명 묶음: 처음 몇 번(fresh)은 펼친 채로, 그 뒤로는 'ⓘ 제목'만 보이게 접어 둔다.
+ * 패널이 다시 그려져도 사용자가 펼치거나 접은 상태는 기억한다 (id별, 이번 접속 동안).
+ */
+const foldState: Record<string, boolean> = {};
+export function helpFold(id: string, title: string, fresh: boolean, ...items: HTMLElement[]): HTMLElement | null {
+  if (!items.length) return null;
+  const open = foldState[id] ?? fresh;
+  const d = h('details', { class: 'help-fold', open }, h('summary', {}, `ⓘ ${title}`), ...items);
+  d.addEventListener('toggle', () => { foldState[id] = (d as HTMLDetailsElement).open; });
+  return d;
 }
 
 /** 해당 힌트가 떠 있으면 사라지게 한다 (여러 id 가능) */
