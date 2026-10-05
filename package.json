@@ -10,7 +10,6 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "mp4-muxer": "^5.2.2",
     "typescript": "^7.0.2",
     "vite": "^8.3.1"
   },

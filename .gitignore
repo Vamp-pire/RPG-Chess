@@ -1,5 +1,4 @@
 node_modules/
 dist/
-trailer-out/
 .vercel/
 *.log
