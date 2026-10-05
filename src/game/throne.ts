@@ -7,6 +7,7 @@
 // 셋을 모은 뒤 촌장 킹에게 말을 걸면 고백을 듣고, 저자 앞에 선택지가 열린다.
 import { G, emit, log, save } from '../core/state';
 import { toast } from '../ui/dom';
+import { seenEnding } from '../core/meta';
 
 export type TraceId = 'straw' | 'queen' | 'king';
 const TRACES: Record<TraceId, { found: string; hint: string }> = {
@@ -24,23 +25,8 @@ const TRACES: Record<TraceId, { found: string; hint: string }> = {
   },
 };
 
-/** 이 엔딩을 본 적이 있는가 (환생해도 남는 기록) */
-export function seenEnding(id: string): boolean {
-  try {
-    return ((JSON.parse(localStorage.getItem('cf_meta') ?? '{}').endings ?? []) as string[]).includes(id);
-  } catch {
-    return false;
-  }
-}
-
 /** 엔딩을 하나라도 본 적이 있는가 (환생해도 남는 기록) */
-export function seenAnyEnding(): boolean {
-  try {
-    return ((JSON.parse(localStorage.getItem('cf_meta') ?? '{}').endings ?? []) as string[]).length > 0;
-  } catch {
-    return false;
-  }
-}
+const seenAnyEnding = () => seenEnding();
 
 export const traceFound = (id: TraceId) => !!G?.flags[`trace_${id}`];
 export const traceCount = () => (Object.keys(TRACES) as TraceId[]).filter(traceFound).length;

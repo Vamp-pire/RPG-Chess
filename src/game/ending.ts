@@ -10,6 +10,7 @@ import { RunRule, pickRunRule } from './runrules';
 import { authorTruth, epilogueCards, jo, pw, talkChain } from './story';
 import { qst } from './quests';
 import { throneOpen } from './throne';
+import { Meta as CoreMeta, meta as coreMeta, setMeta } from '../core/meta';
 
 export type EndingId = 'return' | 'stay' | 'rewrite' | 'together' | 'pen' | 'stalemate' | 'throne' | 'closed';
 export const ENDING_ORDER: EndingId[] = ['return', 'stay', 'rewrite', 'together', 'pen', 'stalemate', 'throne', 'closed'];
@@ -74,19 +75,9 @@ export const ENDINGS: Record<EndingId, { name: string; text: string; bonus: stri
   },
 };
 
-// ---------- 메타 기록 (저장과 별개, 환생해도 남는다) ----------
-export interface Meta { endings: EndingId[]; rebirths: number }
-const META = 'cf_meta';
-export function meta(): Meta {
-  try {
-    return { endings: [], rebirths: 0, ...JSON.parse(localStorage.getItem(META) ?? '{}') };
-  } catch {
-    return { endings: [], rebirths: 0 };
-  }
-}
-function setMeta(m: Meta) {
-  try { localStorage.setItem(META, JSON.stringify(m)); } catch { /* */ }
-}
+// ---------- 메타 기록 (저장과 별개, 환생해도 남는다: core/meta.ts) ----------
+export interface Meta extends CoreMeta { endings: EndingId[] }
+export const meta = () => coreMeta() as Meta;
 
 // ---------- 엔딩 조건 ----------
 type Comp = 'soldier' | 'ghostknight' | 'priest';

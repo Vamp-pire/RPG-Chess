@@ -5,7 +5,7 @@ import { G, align, log } from '../core/state';
 import { PIECES } from '../data/pieces';
 import { cutin, dialog, h, lockStory, modal } from '../ui/dom';
 import { fx } from '../render/fx';
-import { seenEnding } from './throne';
+import { seenEnding } from '../core/meta';
 
 /** 주인공 말 이름 (폰·나이트·비숍) — 이야기 문장의 {P} */
 export const pw = () => (G?.piece === 'pawn' || !G ? '폰' : PIECES[G.piece].name.split(' ')[0]);
