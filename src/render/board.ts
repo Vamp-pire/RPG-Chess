@@ -432,7 +432,7 @@ export class Renderer {
           ctx.stroke();
           if (m.label) {
             // 붙어서 치면 2배
-            const fsz = Math.max(10, Math.round(ts * 0.2));
+            const fsz = Math.max(9, Math.round(ts * 0.14));
             ctx.font = `800 ${fsz}px 'IBM Plex Sans KR', sans-serif`;
             ctx.textAlign = 'center';
             const bw = fsz * 1.9;
