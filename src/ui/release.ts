@@ -2,10 +2,29 @@
 import { AUTHOR, CHANNEL, CREDITS, PATCH_NOTES, PatchNote, betaName, keepCurrentSave, restoreBackup, versionLabel } from '../core/release';
 import { h, modal } from './dom';
 
-const noteEl = (n: PatchNote) =>
-  h('section', { class: 'patch' },
-    h('h3', {}, `v${n.ver} — ${n.title}`, h('small', { class: 'muted' }, ` ${n.date}`)),
-    h('ul', {}, ...n.items.map((t) => h('li', {}, t))));
+// 패치 노트: 항목 앞의 '전투:' 같은 머리말로 묶어 색 있는 제목 아래에 보여 준다 (빼곡하게 붙은 목록은 읽기 어렵다는 베타 의견)
+const CAT_COLOR: Record<string, string> = { 전투: '#ff9a7a', 난이도: '#ff9a7a', 대장간: '#ffd27a', 상점: '#ffd27a', 퍼즐: '#9fd8ff', 화면: '#c9b8ff', 대화: '#c9b8ff', 이야기: '#c9b8ff', 탐험: '#9fe08a', 환생: '#9fe08a', 저장: '#cfd8e8', 고침: '#9aa4b0' };
+function groupItems(items: string[]) {
+  const groups = new Map<string, string[]>();
+  for (const t of items) {
+    const m = t.match(/^([가-힣]{1,4}):\s*(.*)$/);
+    const cat = m ? m[1] : '새로운 것';
+    groups.set(cat, [...(groups.get(cat) ?? []), m ? m[2] : t]);
+  }
+  return groups;
+}
+const noteEl = (n: PatchNote, open = true) => {
+  const body = h('div', { class: 'patch-body' });
+  for (const [cat, list] of groupItems(n.items)) {
+    body.append(h('div', { class: 'patch-group' },
+      h('div', { class: 'patch-cat', style: { color: CAT_COLOR[cat] ?? '#e8c36a' } }, cat),
+      h('ul', {}, ...list.map((t) => h('li', {}, t)))));
+  }
+  const head = h('summary', {}, h('b', {}, `v${n.ver}`), h('span', {}, n.title), h('small', { class: 'muted' }, n.date));
+  const d = h('details', { class: 'patch' }, head, body) as HTMLDetailsElement;
+  d.open = open;
+  return d;
+};
 
 /** 새 버전을 처음 켰을 때: 이번 버전 것만 */
 export function showWhatsNew(n: PatchNote) {
@@ -13,7 +32,7 @@ export function showWhatsNew(n: PatchNote) {
 }
 
 export function openPatchNotes() {
-  modal('패치 노트', h('div', { class: 'patch-notes' }, ...PATCH_NOTES.map(noteEl)), { wide: true });
+  modal('패치 노트', h('div', { class: 'patch-notes' }, ...PATCH_NOTES.map((n, i) => noteEl(n, i === 0))), { wide: true }); // 최신만 펼치고 지난 것은 접어 둔다
 }
 
 export function openCredits() {

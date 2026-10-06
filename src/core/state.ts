@@ -98,7 +98,7 @@ export function newGame(piece: PieceId, diff: Diff = 'normal'): GameState {
     v: 1,
     piece,
     job: null,
-    hp: PIECES[piece].hp,
+    hp: PIECES[piece].hp * HP_MUL, // 체력 2배 규칙 (새 게임이 절반 체력으로 시작하던 것)
     bonusHp: 0,
     promoted: false,
     gold: 20,
@@ -110,7 +110,7 @@ export function newGame(piece: PieceId, diff: Diff = 'normal'): GameState {
     area: 'town',
     pos: [3, 4],
     quests: {},
-    flags: {},
+    flags: { hpx2: true },
     dex: {},
     progress: 0,
     mastery: false,

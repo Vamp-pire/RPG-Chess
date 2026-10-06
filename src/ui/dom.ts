@@ -108,7 +108,29 @@ export function dialog(title: string, text: string | HTMLElement, choices: Choic
     setTimeout(() => root.remove(), 200);
   };
   closeBtn?.addEventListener('click', () => { close(); opts.onDismiss?.(); });
-  if (typeof text === 'string') typewrite(txt as HTMLElement, text);
+  // 한 상자에 말을 몰아넣지 않는다: 문장 단위로 끊어 하나씩 보여 주고, 읽을 시간이 지나면 저절로 다음 줄로.
+  // (베타 의견: 한 대사에 말이 너무 많고 빼곡하다 → 짧은 대화창 여러 개가 순서대로)
+  const parts = typeof text === 'string' ? splitLines(text) : [];
+  let part = 0;
+  let autoT = 0;
+  const pager = h('span', { class: 'vn-pager' });
+  if (parts.length > 1) box.append(pager);
+  const showPart = () => {
+    const last = part >= parts.length - 1;
+    list.style.display = last ? '' : 'none';
+    pager.textContent = last ? '' : `${part + 1}/${parts.length} ▸`;
+    typewrite(txt as HTMLElement, parts[part]);
+    clearTimeout(autoT);
+    if (!last) autoT = window.setTimeout(nextPart, readTime(parts[part]));
+  };
+  const nextPart = () => {
+    if (closed || part >= parts.length - 1) return;
+    part++;
+    showPart();
+  };
+  if (parts.length) showPart();
+  // 아직 줄이 남았으면 상자를 누르면 바로 다음 줄
+  box.addEventListener('click', () => { if (!saying && part < parts.length - 1) nextPart(); });
   for (const c of choices) {
     const b = h('button', { class: 'd-choice vn-choice', disabled: c.disabled }, c.tag ? h('span', { class: `tag tag-${c.tag}` }, tagName(c.tag)) : null, c.label, c.note ? h('small', {}, c.note) : null);
     // 선택지에 손을 올려도 화자는 바뀌지 않는다. 누르면 주인공이 그 말을 하고 대화에서 빠져나온다
@@ -141,6 +163,34 @@ export function dialog(title: string, text: string | HTMLElement, choices: Choic
 }
 
 const tagName = (t: string) => ({ light: '빛', dark: '어둠', neutral: '중립', any: '공통', fight: '전투', job: '직업' } as Record<string, string>)[t] ?? t;
+
+/** 대사를 짧은 줄로 나눈다: 줄바꿈 → 문장(. ? !) 단위. 너무 짧은 조각은 앞뒤와 붙이고, 따옴표는 줄마다 다시 닫아 준다 */
+export function splitLines(text: string): string[] {
+  const quoted = /^"[^"]*"$/.test(text.trim());
+  const body = quoted ? text.trim().slice(1, -1) : text;
+  const out: string[] = [];
+  for (const para of body.split(/\n+/)) {
+    const sents = para.match(/[^.?!]+[.?!]+["”']?\s*|[^.?!]+$/g) ?? [para];
+    let buf = '';
+    for (const raw of sents) {
+      const t = raw.trim();
+      if (!t) continue;
+      // 한 줄은 대략 45자까지: 짧은 문장은 이어 붙이고, 길면 끊는다
+      if (buf && (buf + ' ' + t).length <= 45) buf = `${buf} ${t}`;
+      else { if (buf) out.push(buf); buf = t; }
+    }
+    if (buf) out.push(buf);
+  }
+  const fixed = out.map((line) => {
+    // 따옴표가 줄 사이에 걸치면 그 줄 안에서 닫아 준다
+    const n = (line.match(/"/g) ?? []).length;
+    if (n % 2 === 1) return line.startsWith('"') ? `${line}"` : `"${line}`;
+    return line;
+  });
+  return quoted ? fixed.map((l) => (l.startsWith('"') ? l : `"${l}"`)) : fixed;
+}
+/** 한 줄 읽는 시간 (자동 넘김): 글자 수에 비례, 1.4~4초 */
+const readTime = (t: string) => Math.min(4000, Math.max(1400, 600 + t.length * 60));
 
 function typewrite(el: HTMLElement, text: string) {
   let i = 0;
