@@ -251,7 +251,7 @@ export class Battle {
     const big = d.ai === 'boss' || d.ai === 'queen' || ELITE.has(m);
     // 숨은 난이도: 진행 단계 + 난이도(엘리트·보스) + 환생 횟수(최대 +2)
     const reb = minion ? 0 : Math.min(2, Number(G.flags.rebirth ?? 0));
-    const bonus = (d.ai === 'boss' || d.ai === 'queen' ? t : minion ? 0 : Math.floor(t / 2)) + (big ? DIFFS[G.diff].bossHp : minion ? 0 : DIFFS[G.diff].mobHp) + reb;
+    const bonus = (d.ai === 'boss' || d.ai === 'queen' ? t : minion ? 0 : Math.floor(t / 2)) + (big ? DIFFS[G.diff].bossHp : minion ? 0 : DIFFS[G.diff].mobHp) + reb + (minion ? 0 : this.enc.hpBonus ?? 0);
     const shiny = !minion && !big && !this.enc.guest && (this.enc.daily === 'shiny' || Math.random() < (DIFFS[G.diff].shiny + (perk('shiny') ? 0.03 : 0)) * (runRule() === 'shiny' ? 3 : 1));
     // 지역 리듬 보정 (일반 몹만, 최소 체력 1)
     const tension = !minion && !big ? TENSION[G.area] ?? 0 : 0;

@@ -407,6 +407,8 @@ export interface EncDef {
   /** 야생 조우에 붙는 작은 지형 세트 이름과 설명 */
   terrainName?: string;
   terrainHint?: string;
+  /** 끝없는 탑: 높은 층일수록 몹(부하 제외)에 더하는 체력 */
+  hpBonus?: number;
 }
 
 export const FIXED_ENCS: Record<string, EncDef> = {

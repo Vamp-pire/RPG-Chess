@@ -1,7 +1,7 @@
 // 메타 기록: 저장 슬롯과 별개로 남는 기록 (본 엔딩·최고 환생 횟수). 환생하거나 새 게임을 해도 지워지지 않는다.
 const META = 'cf_meta';
 
-export interface Meta { endings: string[]; rebirths: number }
+export interface Meta { endings: string[]; rebirths: number; /** 끝없는 탑 최고 기록 (오른 층 수) */ towerBest?: number }
 
 export function meta(): Meta {
   try {

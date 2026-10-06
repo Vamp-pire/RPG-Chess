@@ -128,6 +128,9 @@ export const ACHS: Ach[] = [
   // ---------- 전투 ----------
   { id: 'first_win', cat: 'battle', name: '첫 승리', desc: '전투에서 처음 이겼다.', ev: 'battleWin' },
   { id: 'first_death', cat: 'battle', parent: 'first_win', name: '넘어져도 괜찮아', desc: '처음으로 쓰러졌다.', ev: 'death' },
+  { id: 'tower5', cat: 'battle', parent: 'first_win', frame: 'goal', name: '탑의 첫 수문장', desc: '끝없는 탑 5층을 넘었다.', ev: 'tower', test: (n) => (n as number) >= 5 },
+  { id: 'tower10', cat: 'battle', parent: 'tower5', frame: 'goal', name: '구름 위의 칸', desc: '끝없는 탑 10층을 넘었다.', ev: 'tower', test: (n) => (n as number) >= 10 },
+  { id: 'tower20', cat: 'battle', parent: 'tower10', frame: 'challenge', name: '끝이 없는 수', desc: '끝없는 탑 20층을 넘었다.', ev: 'tower', test: (n) => (n as number) >= 20 },
   { id: 'flee', cat: 'battle', parent: 'first_win', name: '전략적 후퇴', desc: '전투에서 처음 물러났다. 살아야 다음 수가 있다.', ev: 'flee' },
   { id: 'win10', cat: 'battle', parent: 'first_win', name: '열 번의 승리', desc: '전투에서 10번 이겼다.', ev: 'battleWin', test: () => G.battles >= 10, progress: () => [Math.min(G.battles, 10), 10] },
   { id: 'win50', cat: 'battle', parent: 'win10', frame: 'goal', name: '쉰 번의 대국', desc: '전투에서 50번 이겼다.', ev: 'battleWin', test: () => G.battles >= 50, progress: () => [Math.min(G.battles, 50), 50] },

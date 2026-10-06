@@ -31,6 +31,7 @@ import { Battle, BattleResult } from './battle';
 import { Explore, RMob, RObj, exitOpen } from './explore';
 import { talk } from './npcs';
 import { eggGold, eggKey, eggLose, eggShopOpen, eggTime, eggWall } from './eggs';
+import { inTower, startTower, towerBest, towerFell, towerUnlocked } from './tower';
 import { QUESTS, craftCount, guideFor, rewardHint, initQuestHooks, progressText, q, qComplete, qOn, qReady, qStart, qst, trackedQuest } from './quests';
 
 type Mode = 'title' | 'explore' | 'battle';
@@ -566,6 +567,14 @@ export class App {
       save();
       return;
     }
+    if (r === 'lose' && inTower()) {
+      // 끝없는 탑: 쓰러져도 재료를 잃지 않고 그 자리(마을)로 돌아온다
+      sfx('lose');
+      this.mode = 'explore';
+      this.explore.resume();
+      towerFell(this);
+      return;
+    }
     if (r === 'lose') {
       sfx('lose');
       eggLose(b?.enc.enemies.map((e) => e.m) ?? []);
@@ -931,6 +940,8 @@ export class App {
       const e = G.flags.ending as EndingId;
       choices.unshift({ label: '처음부터 다시 쓴다 (환생)', note: `본 엔딩: ${ENDINGS[e].name} · ${ENDINGS[e].bonus}`, tag: 'neutral', onPick: () => rebirth(this, e) });
     }
+    // 엔딩을 본 뒤: 끝없는 탑
+    if (towerUnlocked()) choices.unshift({ label: '끝없는 탑에 오른다', note: `최고 기록 ${towerBest()}층 · 쓰러져도 재료를 잃지 않아요`, tag: 'fight', onPick: () => startTower(this) });
     const extra = G.promoted ? ' 그 옆에 누군가 아주 작게 적어 두었다: "다음 수는 네가 둬."' : '';
     dialog('기록의 벽', `빈칸에 새겨진 내 이름 옆에 "${jd.name}"이라고 적혀 있다.${extra}`, choices);
   }
