@@ -1,6 +1,6 @@
 // 엔딩과 환생: 저자 앞에서 마지막 수를 고른다. 엔딩은 8개 — 기본 둘, 판 중의 선택으로 열리는 넷, 환생한 판의 숨은 단서로 열리는 「다음 보스」, 모두를 본 뒤의 진엔딩 하나.
 // 엔딩을 본 뒤 환생하면 일부를 이어받아 처음부터.
-import { G, align, emit, maxHp, newGame, save, wipeSave } from '../core/state';
+import { G, addItem, align, emit, maxHp, newGame, save, wipeSave } from '../core/state';
 import { Diff } from '../core/difficulty';
 import { MatId } from '../data/materials';
 import { cutin, dialog, h, modal, toast } from '../ui/dom';
@@ -241,13 +241,9 @@ function quickStart() {
   Object.assign(G.flags, { boss_dead: true, rook_gone: true, gate_hills: true, talk_boss: true, memory_0: true, ch_1: true, chEnd_1: true, quickStart: true });
   for (const id of ['main_boss', 'main_promo']) G.quests[id] = { st: 'done', n: 0 };
   G.progress += 5;
-  const make = (slot: 'weapon' | 'armor', mats: Partial<Record<MatId, number>>) => {
-    const id = G.nextId++;
-    G.items.push({ id, slot, mats, quality: 0, level: 0 });
-    G.equip[slot] = id;
-  };
-  make('weapon', { wing: 1, moss: 2, fiber: 2 });
-  make('armor', { gel: 2, moss: 2, fiber: 1 });
+  // 장비 개편: 기본 장비 한 벌 = 1지역 방어구·신발 (무기는 직업을 정할 때 계열 시작 무기를 받는다)
+  addItem('r1_mossarmor', 45);
+  addItem('r1_mossboots', 45);
 }
 
 

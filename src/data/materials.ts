@@ -1,4 +1,4 @@
-﻿import { DIAG, JUMP2, KING, KNIGHT, ORTH, RING2, RING3, Vec } from '../core/geom';
+﻿import { ALFIL, DIAG, JUMP2, KING, KNIGHT, ORTH, RING2, RING3, Vec } from '../core/geom';
 import { RuleKind } from '../core/rules';
 
 export type TraitId = 'sticky' | 'sharp' | 'light' | 'sturdy' | 'counter' | 'kibo' | 'bind' | 'undying';
@@ -8,7 +8,8 @@ export type MatId =
   | 'pearl' | 'silver' | 'crack' | 'shard' | 'fang' | 'crown'
   | 'skin' | 'silk' | 'bone' | 'ecto' | 'mirror' | 'blunder' | 'qcrown' | 'fogkey' | 'trigger'
   | 'fur' | 'frost' | 'ice' | 'tusk' | 'kcrown'
-  | 'ink' | 'page' | 'quill' | 'lastword';
+  | 'ink' | 'page' | 'quill' | 'lastword'
+  | 'leg' | 'claw' | 'feather';
 
 export interface MatDef {
   id: MatId;
@@ -60,11 +61,16 @@ export const MATS: Record<MatId, MatDef> = {
   page: { id: 'page', name: '찢긴 페이지', short: '페이지', desc: '어느 대국의 한가운데가 찢겨 나갔다. 넘기면 다른 칸으로 건너간다.', color: '#efe6cf', trait: 'undying', ability: 'blink', price: 14 },
   quill: { id: 'quill', name: '깃펜', short: '깃펜', desc: '모든 수를 적어 온 펜. 쥐는 순간 무엇이든 쓸 수 있을 것만 같다.', color: '#8a7ab8', rare: true, frag: { kind: 'slide', dirs: KING, range: 4 }, trait: 'kibo', ability: 'swap', price: 90 },
   lastword: { id: 'lastword', name: '마지막 수', short: '마지막 수', desc: '기보의 마지막 줄. 어떻게 끝낼지는 아직 비어 있다.', color: '#f0d27a', key: true, price: 0 },
+  // ---- 1지역 새 몹 (장비 개편) ----
+  leg: { id: 'leg', name: '메뚜기 다리', short: '다리', desc: '튕겨 오르는 힘이 남아 있다. 들판의 메뚜기는 앞에 놓인 말을 디딤돌 삼아 넘는다.', color: '#9cc25a', frag: { kind: 'hop', dirs: KING, range: 3 }, trait: 'light', price: 6 },
+  claw: { id: 'claw', name: '두더지 발톱', short: '발톱', desc: '흙을 파던 두툼한 발톱. 두더지는 칸 밑으로 숨었다가 엉뚱한 칸에서 튀어나온다.', color: '#a88a6a', frag: { kind: 'step', dirs: ORTH, range: 1 }, trait: 'counter', price: 6 },
+  feather: { id: 'feather', name: '까마귀 깃', short: '깃', desc: '검고 윤이 난다. 까마귀는 대각선으로 두 칸씩 뛰며 반짝이는 것을 물어 간다.', color: '#4a4a5e', frag: { kind: 'leap', dirs: ALFIL, range: 1 }, trait: 'light', price: 6 },
   fogkey: { id: 'fogkey', name: '안개 열쇠', short: '열쇠', desc: '마을 북쪽의 안개가 떠오른다.', color: '#cfd6d6', key: true, price: 0 },
 };
 
 export const MAT_ORDER: MatId[] = [
   'gel', 'tooth', 'wing', 'moss', 'thorn', 'fiber', 'skin', 'silk', 'bone', 'ecto',
+  'leg', 'claw', 'feather',
   'fur', 'frost', 'ice', 'ink', 'page',
   'pearl', 'silver', 'crack', 'fang', 'shard', 'mirror', 'tusk', 'quill', 'blunder', 'trigger', 'crown', 'qcrown', 'kcrown', 'lastword', 'fogkey',
 ];

@@ -1,10 +1,10 @@
 // 개발용: 처음부터 엔딩까지 자동으로 플레이하고 '난이도 곡선 보고서'를 만든다.
-// 금빛 별(안내)을 따라가고, 전투는 강한 봇, 장비는 가진 재료로 가장 좋은 조합을 바로 만든다.
+// 금빛 별(안내)을 따라가고, 전투는 강한 봇, 장비는 주운 것 중 가장 좋은 것을 끼고 대장간에서 개조·강화한다.
 // 사용: const r = await import('/src/dev/run.ts'); r.startRun(app); … window.__run 으로 진행 확인, r.report()
 import type { App } from '../game/app';
-import { G, curSlot, emit, loadout, newGame, save, setSlot, spendMats, matHave, baseRules } from '../core/state';
-import { MIN_CORE, SLOTS, Slot, Mats, computeItem, itemStats, mergeMats } from '../core/items';
-import { MATS, MAT_ORDER } from '../data/materials';
+import { G, curSlot, emit, loadout, newGame, save, setSlot, spendMats, matHave, baseRules, usable } from '../core/state';
+import { ItemStats, ModEff, SLOTS, Slot, itemStats, modLabel, modOptions } from '../core/items';
+import { MATS, MAT_ORDER, MatId } from '../data/materials';
 import { AREAS } from '../data/areas';
 import { fx } from '../render/fx';
 import { newSquares } from '../ui/forge';
@@ -22,68 +22,79 @@ let weak = false;
 const promoLv = () => (G.flags.promoted3 ? 3 : G.promoted2 ? 2 : G.promoted ? 1 : 0);
 const FORGE_AREAS = ['town', 'camp', 'frostpost', 'margin'];
 
-/** 장비 점수: 새로 생기는 행마 칸 + 특성 + 능력 */
-function gearScore(slot: Slot, mats: Mats, others: ReturnType<typeof baseRules>) {
-  const s = computeItem(slot, mats, 0);
+/** 장비 점수: 새로 생기는 행마 칸 + 특성 + 능력 + 고유 효과 */
+function gearScore(s: ItemStats, others: ReturnType<typeof baseRules>) {
   const t = Object.values(s.traits).reduce((a, b) => a + (b ?? 0), 0);
-  return newSquares(others, s.rules) + t * 3 + (s.ability ? 5 : 0) + (s.rules.some((r) => r.gun) ? 30 : 0);
+  return newSquares(others, s.rules) + t * 3 + (s.ability ? 5 : 0) + (s.uniq ? 4 : 0) + s.hp * 2 + (s.rules.some((r) => r.gun) ? 30 : 0);
 }
+const othersFor = (slot: Slot) => {
+  const cur = G.items.find((i) => i.id === G.equip[slot]);
+  const mine = cur && usable(cur) ? itemStats(cur).rules : [];
+  return loadout().rules.filter((r) => !mine.some((x) => JSON.stringify(x) === JSON.stringify(r)));
+};
 
-/** 가진 재료로 가장 좋은 장비를 골라 바로 만든다 (지금 장비보다 좋을 때만) */
-function autoCraft(st: RunState) {
-  const pool = MAT_ORDER.filter((m) => !MATS[m].key && !MATS[m].binder && matHave(m) > 0);
-  const fiber = Math.min(2, matHave('fiber'));
+/** 주운 장비 중 부위마다 가장 좋은 것을 낀다 (어디서나) */
+function autoEquip(st: RunState) {
   for (const slot of SLOTS) {
+    const others = othersFor(slot);
     const cur = G.items.find((i) => i.id === G.equip[slot]);
-    const others = loadout().rules.filter((r) => !(cur ? itemStats(cur).rules : []).some((x) => JSON.stringify(x) === JSON.stringify(r)));
-    const curScore = cur ? gearScore(slot, cur.mats, others) : -1;
-    let best: { mats: Mats; score: number } | null = null;
-    const need = MIN_CORE[slot];
-    for (const a of pool) {
-      for (let na = 1; na <= Math.min(5, matHave(a)); na++) {
-        const opts: Mats[] = [{ [a]: na }];
-        for (const b of pool) if (b !== a) for (let nb = 1; nb <= Math.min(3, matHave(b)); nb++) {
-          opts.push({ [a]: na, [b]: nb });
-          // 세 가지 섞기 (방어구·각인·유물처럼 재료가 많이 필요한 부위)
-          if (na + nb < need) for (const c of pool) if (c !== a && c !== b) opts.push({ [a]: na, [b]: nb, [c]: Math.min(matHave(c), need - na - nb) });
-        }
-        for (const o of opts) {
-          const core = Object.values(o).reduce((x, y) => x + (y ?? 0), 0);
-          if (core < need) continue;
-          const m: Mats = fiber ? { ...o, fiber } : o;
-          const sc = gearScore(slot, m, others);
-          if (!best || sc > best.score) best = { mats: m, score: sc };
-        }
-      }
+    const curScore = cur && usable(cur) ? gearScore(itemStats(cur), others) : -1;
+    let best: { id: number; score: number } | null = null;
+    for (const it of G.items) {
+      if (it.slot !== slot || !usable(it)) continue;
+      const sc = gearScore(itemStats(it), others);
+      if (!best || sc > best.score) best = { id: it.id, score: sc };
     }
-    if (best && best.score > curScore + 2 && spendMats(best.mats)) {
-      const it = { id: G.nextId++, slot, mats: { ...best.mats }, quality: 0, level: 0 };
-      G.items.push(it);
-      G.equip[slot] = it.id;
-      emit('craft', it);
-      st.notes.push(`#${st.recs.length} 제작 ${slot}: ${itemStats(it).name} (점수 ${best.score})`);
+    if (best && best.id !== cur?.id && best.score > curScore) {
+      G.equip[slot] = best.id;
+      st.notes.push(`#${st.recs.length} 장착 ${slot}: ${itemStats(G.items.find((i) => i.id === best!.id)!).name} (점수 ${best.score})`);
     }
   }
   save();
 }
 
-/** 강화: 장착 장비에 주 재료를 하나 더 넣어 점수가 떨어지지 않으면 강화 (골드가 되는 만큼) */
+/** 개조: 장착 장비의 빈 칸에 점수가 가장 많이 오르는 재료·효과를 넣는다 (대장간에서) */
+function autoCraft(st: RunState) {
+  for (const slot of SLOTS) {
+    const it = G.items.find((i) => i.id === G.equip[slot]);
+    if (!it || !it.base) continue;
+    const others = othersFor(slot);
+    for (let guard = 0; guard < 3; guard++) {
+      const s = itemStats(it);
+      if (s.mods.length >= s.slotsN) break;
+      const base = gearScore(s, others);
+      let best: { mat: MatId; e: ModEff; gain: number } | null = null;
+      for (const mat of MAT_ORDER) {
+        if (MATS[mat].key || matHave(mat) < 1) continue;
+        // 강화 재료는 남겨 둔다
+        if (mat === s.base?.mat && matHave(mat) <= 3) continue;
+        for (const o of modOptions(it, mat)) {
+          if (!o.ok) continue;
+          const after = gearScore(itemStats({ ...it, mods: [...(it.mods ?? []), { mat, e: o.e }] }), others);
+          if (!best || after - base > best.gain) best = { mat, e: o.e, gain: after - base };
+        }
+      }
+      if (!best || best.gain <= 0 || !spendMats({ [best.mat]: 1 })) break;
+      it.mods = [...(it.mods ?? []), { mat: best.mat, e: best.e }];
+      emit('craft', it);
+      st.notes.push(`#${st.recs.length} 개조 ${slot}: ${modLabel({ mat: best.mat, e: best.e })} (+${best.gain})`);
+    }
+  }
+  save();
+}
+
+/** 강화: 장착 장비를 골드·재료가 되는 만큼 (대장간에서) */
 function autoEnhance(st: RunState) {
   for (const slot of SLOTS) {
     const it = G.items.find((i) => i.id === G.equip[slot]);
-    if (!it || it.level >= 3) continue;
-    const cost = 15 * (it.level + 1);
-    if (G.gold < cost + 20) continue;
-    const top = itemStats(it).shares[0]?.id;
-    if (!top || matHave(top) < 1) continue;
-    const others = loadout().rules.filter((r) => !itemStats(it).rules.some((x) => JSON.stringify(x) === JSON.stringify(r)));
-    const before = gearScore(slot, it.mats, others);
-    const next = mergeMats(it.mats, { [top]: 1 });
-    if (gearScore(slot, next, others) < before) continue;
-    if (!spendMats({ [top]: 1 })) continue;
+    if (!it || !it.base || it.level >= 3) continue;
+    const b = itemStats(it).base!;
+    const cost = 15 * (it.level + 1) * Math.max(1, b.region);
+    if (G.gold < cost + 20 || matHave(b.mat) < it.level + 1) continue;
+    if (!spendMats({ [b.mat]: it.level + 1 })) continue;
     G.gold -= cost;
-    it.mats = next;
     it.level++;
+    it.q = Math.min(99, (it.q ?? 0) + 3);
     emit('enhance', it.level);
     st.notes.push(`#${st.recs.length} 강화 ${slot} +${it.level}`);
   }
@@ -124,7 +135,7 @@ async function loop(app: App, st: RunState, maxFights: number, job: string) {
         if (!/조우/.test(b.enc.name) && !st.snaps[b.enc.name]) {
           const flags: Record<string, boolean | string> = {};
           for (const [k, v] of Object.entries(G.flags)) if (/^perk_|^branch$|^promoted3$/.test(k)) flags[k] = v as boolean | string;
-          st.snaps[b.enc.name] = { piece: 'pawn', promoted: G.promoted, promoted2: G.promoted2, progress: G.progress, bonusHp: G.bonusHp, flags, items: SLOTS.map((s) => G.items.find((i) => i.id === G.equip[s])).filter(Boolean).map((i) => [i!.slot, i!.mats]) };
+          st.snaps[b.enc.name] = { piece: 'pawn', promoted: G.promoted, promoted2: G.promoted2, progress: G.progress, bonusHp: G.bonusHp, flags, items: SLOTS.map((s) => G.items.find((i) => i.id === G.equip[s])).filter(Boolean).map((i) => [i!.slot, i!.base ?? '', i!.q ?? 0, i!.level]) };
         }
         const rec: Rec = { i: st.recs.length, area: G.area, region: AREAS[G.area].region, enc: b.enc.name, r: '', turns: 0, hp0: b.hero.hp, hp1: 0, mh: b.hero.maxHp, gear: Object.values(G.equip).filter(Boolean).length, promo: promoLv() };
         let n = 0;
@@ -143,7 +154,8 @@ async function loop(app: App, st: RunState, maxFights: number, job: string) {
         P.closeAll();
         continue;
       }
-      if (FORGE_AREAS.includes(G.area)) { autoCraft(st); autoEnhance(st); }
+      autoEquip(st);
+      if (FORGE_AREAS.includes(G.area)) { autoCraft(st); autoEnhance(st); autoEquip(st); }
       // 막혔으면 파밍: 이 지역 몹을 먼저 친다
       if (farm > 0 && app.explore.mobs.length) {
         const m = app.explore.mobs[0];

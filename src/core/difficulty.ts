@@ -16,7 +16,7 @@ export interface DiffDef {
   drop: number;
   /** 쓰러졌을 때 잃는 가방 재료 비율 */
   loss: number;
-  /** 재련(장비 분해)으로 돌려받는 재료 비율. 0이면 재련 불가 */
+  /** 옛 방식 장비를 분해할 때 돌려받는 재료 비율. 0이면 불가 (새 장비 분해는 난이도와 상관없다) */
   refund: number;
   /** 용사의 의지가 전투마다 다시 차오르는가 (아니면 쉬어야 차오름) */
   willEachBattle: boolean;
@@ -60,19 +60,19 @@ export const DIFFS: Record<Diff, DiffDef> = {
   },
   easy: {
     name: '쉬움',
-    shown: ['장비를 재련하면 재료를 모두 돌려받아요', '전투가 아직 낯설다면 여기서'],
+    shown: ['쓰러져도 가방 재료를 조금만 잃어요', '전투가 아직 낯설다면 여기서'],
     gold: 0.6, rare: 0.5, extra: 0, drop: 0.85, loss: 0.25, refund: 1, willEachBattle: true, bossHp: 0, mobHp: 0, fleeCost: 0, shiny: 0.05,
     chase: true, breath: 3, ambush: 0.05, blur: 0.11, clock: 38, aware: 0.38, haste: 0.08, retaliate: 0.08, terrain: 1,
   },
   normal: {
     name: '보통',
-    shown: ['장비를 재련하면 재료를 절반 돌려받아요', '처음 하는 분께 추천해요'],
+    shown: ['쓰러지면 가방 재료를 절반 잃어요', '처음 하는 분께 추천해요'],
     gold: 1, rare: 0.8, extra: 0, drop: 0.8, loss: 0.5, refund: 0.5, willEachBattle: false, bossHp: 1, mobHp: 0, fleeCost: 1, shiny: 0.07,
     chase: true, breath: 3, ambush: 0.09, blur: 0.25, clock: 24, aware: 0.65, haste: 0.13, retaliate: 0.15, terrain: 2,
   },
   hard: {
     name: '어려움',
-    shown: ['재련할 수 없어요', '예고 없이 덮치는 적이 있어요', '보상이 훨씬 많아요'],
+    shown: ['쓰러지면 가방 재료를 모두 잃어요', '예고 없이 덮치는 적이 있어요', '보상이 훨씬 많아요'],
     gold: 1.5, rare: 1.6, extra: 0.22, drop: 0.8, loss: 1, refund: 0, willEachBattle: false, bossHp: 2, mobHp: 1, fleeCost: 1, shiny: 0.1,
     chase: true, breath: 4, ambush: 0.15, blur: 0.4, clock: 18, aware: 0.88, haste: 0.18, retaliate: 0.22, terrain: 3,
   },

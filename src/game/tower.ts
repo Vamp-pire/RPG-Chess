@@ -12,7 +12,7 @@ import type { App } from './app';
 
 /** 다섯 층씩 한 묶음: 어느 지역의 몹·판이 나오는가 (16층부터는 마지막 묶음이 계속) */
 const TIERS: { name: string; biomes: AreaId[]; mobs: MobId[]; elite: MobId }[] = [
-  { name: '들판의 층', biomes: ['meadow', 'forest', 'hills'], mobs: ['slime', 'rat', 'bat', 'golem', 'thorn'], elite: 'hound' },
+  { name: '들판의 층', biomes: ['meadow', 'forest', 'hills'], mobs: ['slime', 'rat', 'bat', 'golem', 'thorn', 'hopper', 'mole', 'crow'], elite: 'hound' },
   { name: '늪의 층', biomes: ['marsh', 'ruins'], mobs: ['toad', 'spider', 'skeleton', 'wraith', 'rat'], elite: 'bonelord' },
   { name: '설원의 층', biomes: ['tundra', 'glacier', 'bastion'], mobs: ['wolf', 'icesprite', 'snowpawn', 'frostbishop', 'tower'], elite: 'giant' },
   { name: '잉크의 층', biomes: ['margin', 'fold', 'inkwell'], mobs: ['inkblot', 'erased', 'bookworm', 'annot', 'inkdrop'], elite: 'double' },
@@ -126,3 +126,6 @@ function finish(app: App, floors: number, fell: boolean) {
     h('p', { class: 'hint' }, '탑에서는 쓰러져도 재료를 잃지 않아요. 장비를 다듬고 다시 올라 보세요.'));
   whenFree(() => modal('끝없는 탑', body));
 }
+
+/** 탑에서 지금 층이 몇 지역 몹인가 (장비 드랍 기준) */
+export const towerRegion = () => (run ? Math.min(TIERS.length, Math.floor((run.floor - 1) / 5) + 1) : 1);

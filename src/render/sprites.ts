@@ -438,6 +438,85 @@ function drawMob(ctx: CanvasRenderingContext2D, id: string, t: number, lw: numbe
       ctx.fillText('??', 0, 12);
       break;
     }
+    case 'hopper': {
+      // 메뚜기: 길쭉한 몸통 + 접힌 뒷다리 (튀어 오를 듯 움찔)
+      const jump = Math.max(0, Math.sin(t / 180)) * 4;
+      ctx.translate(0, -jump);
+      ctx.beginPath();
+      ctx.moveTo(-6, 6); ctx.lineTo(-30, -18); ctx.lineTo(-36, 22);
+      ctx.moveTo(6, 6); ctx.lineTo(30, -18); ctx.lineTo(36, 22);
+      outline(ctx, lw - 1);
+      ctx.beginPath();
+      ctx.ellipse(0, 4, 13, 28, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#9cc25a';
+      ctx.fill();
+      outline(ctx, lw);
+      ctx.beginPath();
+      ctx.moveTo(-5, -24); ctx.quadraticCurveTo(-14, -42, -22, -40);
+      ctx.moveTo(5, -24); ctx.quadraticCurveTo(14, -42, 22, -40);
+      outline(ctx, 2.5);
+      eyes(ctx, -7, 7, -14, 5);
+      break;
+    }
+    case 'mole': {
+      // 두더지: 흙더미 위 둥근 머리, 큰 앞발
+      ctx.beginPath();
+      ctx.ellipse(0, 26, 38, 10, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#8a6a48';
+      ctx.fill();
+      outline(ctx, lw - 1);
+      ctx.beginPath();
+      ctx.arc(0, 2, 26, Math.PI, 0);
+      ctx.lineTo(26, 22);
+      ctx.lineTo(-26, 22);
+      ctx.closePath();
+      ctx.fillStyle = '#5e4a3a';
+      ctx.fill();
+      outline(ctx, lw);
+      for (const sx of [-1, 1]) {
+        ctx.beginPath();
+        ctx.ellipse(sx * 24, 16, 10, 7, sx * 0.4, 0, Math.PI * 2);
+        ctx.fillStyle = '#e8c0a8';
+        ctx.fill();
+        outline(ctx, 3);
+      }
+      ctx.beginPath();
+      ctx.arc(0, 4, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#f0a0a0';
+      ctx.fill();
+      outline(ctx, 2.5);
+      eyes(ctx, -9, 9, -8, 3.5);
+      break;
+    }
+    case 'crow': {
+      // 까마귀: 검은 몸통, 노란 부리, 퍼덕이는 날개
+      const f = Math.sin(t / 140) * 0.3;
+      for (const sx of [-1, 1]) {
+        ctx.save();
+        ctx.scale(sx, 1);
+        ctx.rotate(f);
+        ctx.beginPath();
+        ctx.moveTo(8, -2); ctx.lineTo(40, -14); ctx.lineTo(34, 6); ctx.lineTo(16, 12);
+        ctx.closePath();
+        ctx.fillStyle = '#2e2e3a';
+        ctx.fill();
+        outline(ctx, lw - 1);
+        ctx.restore();
+      }
+      ctx.beginPath();
+      ctx.ellipse(0, 4, 18, 22, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#3a3a4a';
+      ctx.fill();
+      outline(ctx, lw);
+      ctx.beginPath();
+      ctx.moveTo(-5, -6); ctx.lineTo(0, 6); ctx.lineTo(5, -6);
+      ctx.closePath();
+      ctx.fillStyle = '#f0c040';
+      ctx.fill();
+      outline(ctx, 2.5);
+      eyes(ctx, -8, 8, -12, 4);
+      break;
+    }
     default: {
       ctx.beginPath();
       ctx.arc(0, 0, 30, 0, Math.PI * 2);

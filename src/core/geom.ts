@@ -6,6 +6,8 @@ export const KING: Vec[] = [...ORTH, ...DIAG];
 export const KNIGHT: Vec[] = [[1, -2], [2, -1], [2, 1], [1, 2], [-1, 2], [-2, 1], [-2, -1], [-1, -2]];
 
 export const JUMP2: Vec[] = [[0, -2], [2, 0], [0, 2], [-2, 0]];
+/** 대각선 두 칸 뛰기 (까마귀) */
+export const ALFIL: Vec[] = [[2, -2], [2, 2], [-2, 2], [-2, -2]];
 const ring = (r: number): Vec[] => {
   const out: Vec[] = [];
   for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (Math.max(Math.abs(x), Math.abs(y)) === r) out.push([x, y]);

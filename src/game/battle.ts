@@ -50,7 +50,25 @@ interface BUnit {
   unhitTurns?: number;
   retaliating?: boolean;
   hitThisTurn?: boolean;
+  /** 변이 접두어: 같은 몹이라도 성질이 이름에 드러난다 */
+  pre?: PreId;
+  /** 두더지: 땅속에 숨어 있다 (맞지 않는다) / 다시 숨기까지 남은 턴 / 튀어나올 칸 */
+  under?: boolean;
+  burrowCd?: number;
+  goUnder?: boolean;
+  emergeAt?: Vec;
+  /** 까마귀가 물어 간 골드 */
+  loot?: number;
+  /** 갈라지는 몹에서 떨어져 나온 작은 몸 (전리품 없음) */
+  splitChild?: boolean;
 }
+
+/** 변이 접두어 (디스코드 의견: 같은 몹인데 재빠름·따라붙음이 들쭉날쭉 → 숨은 성질을 이름으로 드러낸다) */
+export type PreId = 'swift' | 'chase' | 'tough' | 'split';
+export const PRE_NAME: Record<PreId, string> = { swift: '재빠른', chase: '따라붙는', tough: '단단한', split: '갈라지는' };
+const PRE_DESC: Record<PreId, string> = { swift: '가끔 한 번 더 움직인다.', chase: '공격이 빗나가면 한 칸 따라붙는다.', tough: '체력이 더 많다.', split: '쓰러지면 작은 몸 하나가 떨어져 나온다.' };
+/** 일반 몹이 접두어를 달고 나올 확률 (난이도별) */
+const PRE_RATE: Record<string, number> = { story: 0.08, easy: 0.25, normal: 0.35, hard: 0.45, master: 0.55 };
 
 export type BattleResult = 'win' | 'lose' | 'flee';
 
@@ -71,7 +89,8 @@ const ELITE = new Set<MobId>(['hound', 'bonelord', 'rook', 'blunder']);
 /** 숨은 빠르기 (화면엔 안 보임): 0 느림 · 1 보통(기본) · 2 빠름. 난이도의 haste와 곱해 '한 번 더 움직일' 확률이 된다 */
 const SPEED: Partial<Record<MobId, number>> = {
   rat: 2, bat: 2, hound: 2, wolf: 2, spider: 2, inkblot: 2, erased: 2, wraith: 2, icesprite: 2,
-  slime: 0, slimelet: 0, golem: 0, thorn: 0, giant: 0, bookworm: 0, tower: 0, strawpawn: 0, snowpawn: 0,
+  slime: 0, slimelet: 0, golem: 0, thorn: 0, giant: 0, bookworm: 0, tower: 0, strawpawn: 0, snowpawn: 0, mole: 0,
+  crow: 2,
 };
 
 export class Battle {
@@ -108,6 +127,10 @@ export class Battle {
   will = false;
   cds: number[];
   kills: MobId[] = [];
+  /** 접두어 몹 처치 (장비 품질이 조금 높게) */
+  preKills: MobId[] = [];
+  /** 주인공의 바로 전 행동이 이동이었나 (고유 효과 '정조준') */
+  heroMoved = false;
   shinyKills: MobId[] = [];
   /** 업적용 기록: 어떻게 쓰러뜨렸나 / 주인공이 무엇을 했나 */
   hows: { mob: MobId; how: string }[] = [];
@@ -263,9 +286,10 @@ export class Battle {
     const reg = AREAS[G.area]?.region ?? 1;
     const isBoss = d.ai === 'boss' || d.ai === 'queen';
     const scale = minion || isBoss || reg < 2 ? 1 : reg === 2 ? (big ? 0.9 : 0.75) : big ? 0.85 : 0.7;
-    const hp = HP_MUL * Math.max(1, Math.round((d.hp + bonus + tension) * scale) + (shiny ? 1 : 0));
+    const pre = !minion && !big && !shiny && !this.enc.guest && !this.enc.hold && !this.enc.daily && Math.random() < PRE_RATE[G.diff] ? this.rollPre(m) : undefined;
+    const hp = HP_MUL * Math.max(1, Math.round((d.hp + bonus + tension) * scale) + (shiny ? 1 : 0) + (pre === 'tough' ? 1 : 0));
     const sprite = m === 'rook' ? 'p:br' : `m:${m}`;
-    const u: BUnit = { uid: UID++, mob: m, x, y, hp, maxHp: hp, atk: d.atk, intent: null, stun: 0, shiny, ent: mkEnt(`u${UID}`, sprite, x, y, { hp, maxHp: hp, bob: true, ...(shiny ? { glow: 'rgba(255,214,90,0.55)' } : {}) }) };
+    const u: BUnit = { uid: UID++, mob: m, x, y, hp, maxHp: hp, atk: d.atk, intent: null, stun: 0, shiny, pre, burrowCd: 1, ent: mkEnt(`u${UID}`, sprite, x, y, { hp, maxHp: hp, bob: true, ...(shiny ? { glow: 'rgba(255,214,90,0.55)' } : {}) }) };
     if (shiny) {
       fx.text(x + 0.5, y, '빛나는 개체!', '#ffd65a', true);
       fx.burst(x + 0.5, y + 0.5, '#ffd65a', 14, { speed: 2 });
@@ -273,6 +297,23 @@ export class Battle {
     }
     this.units.push(u);
     return u;
+  }
+
+  /** 이 몹에 어울리는 접두어 하나 (움직이지 않는 몹은 재빠름·따라붙음 없음) */
+  private rollPre(m: MobId): PreId | undefined {
+    const d = MOBS[m];
+    const mover = d.ai === 'basic' || d.ai === 'charge';
+    const opts: PreId[] = ['tough'];
+    if (m !== 'slime' && !d.split && d.ai !== 'static') opts.push('split');
+    if (mover && SPEED[m] !== 0) opts.push('swift', 'swift');
+    if (mover && DIFFS[G.diff].chase) opts.push('chase', 'chase');
+    return pick(opts);
+  }
+
+  /** 화면에 보이는 이름: 접두어 + 몹 이름 */
+  mobName(u: BUnit) {
+    const n = MOBS[u.mob!].name;
+    return u.pre ? `${PRE_NAME[u.pre]} ${n}` : n;
   }
 
   private nearFree(p: Vec): Vec | null {
@@ -287,7 +328,7 @@ export class Battle {
   /** 몹의 행마 (빛나는 개체는 8방향 1칸이 더 붙는다) */
   /** 멀리서 치는 적인가 (2칸 이상 닿는 공격 행마가 있다) — 수풀을 좋아한다. 아니면 붙어 치는 적 — 고지를 좋아한다 */
   private isRangedMob(m: MobId) {
-    return MOBS[m].attack.some((r) => r.kind === 'leap' || (r.kind === 'slide' && r.range > 1));
+    return MOBS[m].attack.some((r) => r.kind === 'leap' || r.kind === 'hop' || (r.kind === 'slide' && r.range > 1));
   }
 
   /**
@@ -406,7 +447,7 @@ export class Battle {
       w: this.w,
       h: this.h,
       passable: this.floor,
-      occ: (x, y) => (this.unitAt(x, y) ? 'enemy' : this.allyAt(x, y) && this.allyAt(x, y) !== me ? 'block' : null),
+      occ: (x, y) => { const o = this.unitAt(x, y); return o ? (o.under ? 'block' : 'enemy') : this.allyAt(x, y) && this.allyAt(x, y) !== me ? 'block' : null; },
     };
   }
 
@@ -499,7 +540,7 @@ export class Battle {
   /** 적의 행마 범위: 움직일 수 있는 칸, 칠 수 있는 칸 (빈칸도 칠 수 있는 곳으로 본다) */
   private enemyRange(x: number, y: number) {
     const u = this.unitAt(x, y);
-    if (!u || u.hp <= 0 || !u.mob) return null;
+    if (!u || u.hp <= 0 || !u.mob || u.under) return null;
     const g = this.gridFor(u);
     const moves = genTargets(this.mobRules(u, 'move'), [u.x, u.y], g).moves.filter(([mx, my]) => this.floor(mx, my));
     const ga: Grid = { ...g, occ: (ax, ay) => (this.unitAt(ax, ay) && !(ax === u.x && ay === u.y) && !this.allyAt(ax, ay) ? 'block' : this.floor(ax, ay) ? 'enemy' : null) };
@@ -544,7 +585,7 @@ export class Battle {
       this.note = `${this.nameOf(a)} → ${MOBS[this.unitAt(x, y)!.mob!].name} 공격`;
       await this.act(() => this.allyAttack(a, this.unitAt(x, y)!));
     } else if (this.targets.moves.some((t) => eq(t, [x, y]))) {
-      if (a.ally === 'hero') this.acts.move++;
+      if (a.ally === 'hero') { this.acts.move++; this.heroMoved = true; }
       this.note = `${this.nameOf(a)} ${'abcdefgh'[x]}${this.h - y}로 이동`;
       await this.act(async () => {
         const ox = a.x;
@@ -680,8 +721,10 @@ export class Battle {
     if (u.hp <= 0 || this.enc.hold || this.enc.guest) return;
     const d = MOBS[u.mob!];
     if (d.ai !== 'basic') return;
-    const p = (DIFFS[G.diff].haste + (runRule() === 'swift' ? 0.1 : 0)) * (SPEED[u.mob!] ?? 1);
-    if (!p || Math.random() >= p) return;
+    // 재빠른 몹만 한 번 더 움직인다 (이름에 보이니 같은 몹인데 들쭉날쭉하지 않다). 확률은 난이도
+    if (u.pre !== 'swift') return;
+    const p = Math.min(0.65, 0.3 + DIFFS[G.diff].haste * 1.5 + (runRule() === 'swift' ? 0.1 : 0));
+    if (Math.random() >= p) return;
     if (this.hitTarget(u, [u.x, u.y])) return;
     const it = this.decide(u, new Set());
     if (it.t !== 'move' || !this.free(it.to[0], it.to[1])) return;
@@ -760,6 +803,16 @@ export class Battle {
       dmg++;
       this.sharp--;
     }
+    // 보스 고유 무기: 포위 돌파(붙은 적 둘 이상) · 정조준(제자리에서)
+    if (isHero && this.lo.uniq.includes('crowd') && this.enemies().filter((e) => !e.under && cheb([e.x, e.y], [a.x, a.y]) <= 1).length >= 2) {
+      dmg++;
+      fx.text(a.x + 0.5, a.y - 0.35, '포위 돌파', '#ffd48a');
+    }
+    if (isHero && this.lo.uniq.includes('aim') && !this.heroMoved) {
+      dmg++;
+      fx.text(a.x + 0.5, a.y - 0.35, '정조준', '#ffd48a');
+    }
+    if (isHero) this.heroMoved = false;
     // 고지에서 내려치면 +1
     if (this.tileAt(a.x, a.y) === 'high') {
       dmg++;
@@ -790,6 +843,15 @@ export class Battle {
       if (isHero) this.bind--;
       u.intent = { t: 'idle', why: '묶임' };
       fx.text(u.x + 0.5, u.y - 0.1, '속박', '#cfe0ff');
+    }
+    // 고유 효과 '자리 바꾸기': 친 적이 살아남으면 자리를 바꾼다
+    if (!dead && isHero && u.hp > 0 && this.lo.uniq.includes('swap') && !this.shielded(u)) {
+      const ap: Vec = [a.x, a.y];
+      const up: Vec = [u.x, u.y];
+      fx.text(u.x + 0.5, u.y - 0.3, '자리 바꾸기', '#cfe0ff');
+      await Promise.all([moveEnt(a.ent, up), moveEnt(u.ent, ap)]);
+      [a.x, a.y] = up;
+      [u.x, u.y] = ap;
     }
     await this.checkPhase();
   }
@@ -874,6 +936,7 @@ export class Battle {
         s.ent.hp = 1;
         s.ent.maxHp = u.maxHp;
         s.revived = true;
+        s.pre = u.pre;
         s.intent = { t: 'idle', why: '쓰러짐' };
         this.syncEnts();
         fx.text(spot[0] + 0.5, spot[1], '다시 일어선다!', '#e8e2cf');
@@ -886,12 +949,39 @@ export class Battle {
       if (u.mob === 'strawking') bossFell('straw', this.hero.hp > 0 && this.tileAt(this.hero.x, this.hero.y) === 'throne');
       if (u.mob === 'misqueen') bossFell('queen', u.y === 0);
       if (u.mob === 'frozenking') bossFell('king', this.pawnCapture);
-      this.kills.push(u.mob);
-      this.hows.push({ mob: u.mob, how });
-      if (u.shiny) this.shinyKills.push(u.mob);
+      if (!u.splitChild) {
+        this.kills.push(u.mob);
+        this.hows.push({ mob: u.mob, how });
+        if (u.shiny) this.shinyKills.push(u.mob);
+        if (u.pre) this.preKills.push(u.mob);
+      }
+      if (u.loot) {
+        G.gold += u.loot;
+        fx.text(u.x + 0.5, u.y - 0.3, `+${u.loot}G 되찾음`, '#ffd65a', true);
+        u.loot = 0;
+      }
     }
     await death(u.ent, u.mob ?? '');
     this.syncEnts();
+    // 갈라지는 몹: 체력 1의 작은 몸 하나가 떨어져 나온다 (전리품 없음)
+    if (u.pre === 'split' && !u.splitChild && !noDrop) {
+      const spot = shuffle(KING.map(([dx, dy]) => [u.x + dx, u.y + dy] as Vec).filter(([x, y]) => this.free(x, y)))[0];
+      if (spot) {
+        const c = this.addEnemy(u.mob!, spot[0], spot[1], 0);
+        c.pre = undefined;
+        c.splitChild = true;
+        c.hp = HP_MUL;
+        c.maxHp = HP_MUL;
+        c.ent.hp = c.hp;
+        c.ent.maxHp = c.maxHp;
+        c.ent.sx = c.ent.sy = 0.72;
+        c.ent.x = u.x;
+        c.ent.y = u.y;
+        this.syncEnts();
+        fx.text(spot[0] + 0.5, spot[1], '갈라졌다!', '#d8c0a0');
+        await Promise.all([moveEnt(c.ent, spot), popIn(c.ent)]);
+      }
+    }
     // 분열: 슬라임은 하나, 잉크 얼룩은 둘로 튄다
     const splitTo = u.mob === 'slime' ? 'slimelet' : d.split;
     if (splitTo && !noDrop) {
@@ -1342,6 +1432,27 @@ export class Battle {
         return this.decideMove(u, reserved, near);
       }
       default: {
+        // 두더지: 땅속에 숨었다가 주인공 곁 칸(미리 보임)에서 튀어나와 주변을 친다
+        if (d.tags?.includes('burrow')) {
+          if (u.under) {
+            const hr = this.hero;
+            const spots = KING.map(([dx, dy]) => [hr.x + dx, hr.y + dy] as Vec).filter(([x, y]) => this.free(x, y) && !reserved.has(key(x, y)) && !this.erase.some((e) => eq(e, [x, y])));
+            const to = spots.length ? pick(spots) : ([u.x, u.y] as Vec);
+            reserved.add(key(to[0], to[1]));
+            u.emergeAt = to;
+            return { t: 'attack', sq: KING.map(([dx, dy]) => [to[0] + dx, to[1] + dy] as Vec).filter(([x, y]) => this.floor(x, y)) };
+          }
+          u.burrowCd = Math.max(0, (u.burrowCd ?? 0) - 1);
+          if (!this.hitTarget(u, [u.x, u.y]) && u.burrowCd === 0) {
+            u.goUnder = true;
+            return { t: 'idle', why: '땅을 판다' };
+          }
+        }
+        // 까마귀: 골드를 물었으면 주인공에게서 멀어진다
+        if (d.tags?.includes('thief') && (u.loot ?? 0) > 0) {
+          const hr = this.hero;
+          return this.decideMove(u, reserved, (s) => -cheb(s, [hr.x, hr.y]) * 10 - manh(s, [hr.x, hr.y]));
+        }
         const ht = this.hitTarget(u, [u.x, u.y]);
         if (d.tags?.includes('breath') && ht) {
           // 쉬움: 공격·쉬기 번갈아 / 보통·어려움: 공격·공격·쉬기 (베타 피드백: 공격 사이클이 너무 쉽게 나옴)
@@ -1467,6 +1578,30 @@ export class Battle {
       const it = u.intent;
       if (!it) continue;
       const tags = MOBS[u.mob!].tags ?? [];
+      if (u.goUnder) {
+        u.goUnder = false;
+        u.under = true;
+        u.ent.alpha = 0.28;
+        fx.text(u.x + 0.5, u.y - 0.2, '땅속으로!', '#c8a878');
+        await squash(u.ent);
+        continue;
+      }
+      if (it.t === 'attack' && u.emergeAt) {
+        const spot: Vec | null = this.free(u.emergeAt[0], u.emergeAt[1]) ? u.emergeAt : this.nearFree(u.emergeAt);
+        u.emergeAt = undefined;
+        u.under = false;
+        u.burrowCd = 3;
+        u.ent.alpha = 1;
+        if (spot) {
+          await moveEnt(u.ent, spot);
+          u.x = spot[0];
+          u.y = spot[1];
+        }
+        fx.text(u.x + 0.5, u.y - 0.3, '튀어나왔다!', '#e0b888', true);
+        fx.shake(3);
+        for (const a of it.sq.map(([x, y]) => this.allyAt(x, y)).filter((a): a is BUnit => !!a && cheb([a.x, a.y], [u.x, u.y]) <= 1)) await this.hitAlly(a, this.atkOf(u, a), u);
+        continue;
+      }
       if (it.t === 'attack') {
         const targets = it.sq.map(([x, y]) => this.allyAt(x, y)).filter((a): a is BUnit => !!a);
         if (MOBS[u.mob!].ai === 'static' || MOBS[u.mob!].ai === 'turret') {
@@ -1479,6 +1614,13 @@ export class Battle {
           await lunge(u.ent, tgt ? [tgt.x, tgt.y] : it.sq[0], () => { hit = !!tgt; });
           if (hit && tgt) {
             await this.hitAlly(tgt, this.atkOf(u, tgt), u);
+            // 까마귀: 주인공을 쪼면 골드를 물어 간다 (잡으면 돌려받는다)
+            if (tags.includes('thief') && tgt.ally === 'hero' && !u.loot && G.gold > 0) {
+              const n = Math.min(G.gold, 4 + 3 * (AREAS[G.area]?.region ?? 1));
+              G.gold -= n;
+              u.loot = n;
+              fx.text(u.x + 0.5, u.y - 0.4, `${n}G 물어 감!`, '#ffd65a', true);
+            }
             if (tags.includes('root') && tgt.hp > 0) {
               tgt.rootNext = true;
               fx.text(tgt.x + 0.5, tgt.y - 0.3, '묶임!', '#dfe4ea');
@@ -1487,7 +1629,9 @@ export class Battle {
             fx.text(it.sq[0][0] + 0.5, it.sq[0][1] + 0.3, '빗나감', '#ccc');
             // 빗나간 적은 킹처럼 한 칸 따라붙는다 (예고를 피해 치고 빠지는 카이팅 억제). 쉬움은 그대로.
             // 보스도 따라붙는다 (베타 제보: 밀짚왕만 안 따라붙어 이상하다 + '피해를 안 받는 사이클'이 너무 쉽다)
-            if (DIFFS[G.diff].chase) await this.chaseAfterMiss(u);
+            // 장비 개편: 따라붙는 건 이름에 '따라붙는'이 붙은 몹과 보스만 (보이는 규칙으로)
+            const bossy = MOBS[u.mob!].ai === 'boss' || MOBS[u.mob!].ai === 'queen';
+            if (DIFFS[G.diff].chase && (u.pre === 'chase' || bossy)) await this.chaseAfterMiss(u);
           }
         }
       } else if (it.t === 'move') {
@@ -1928,10 +2072,10 @@ export class Battle {
       const it = u.intent;
       const itxt = !it ? '' : it.t === 'attack' ? (it.hidden ? '???' : it.blur ? '공격 예고 (어딘가 근처)' : '공격 예고') : it.t === 'charge' ? '돌진 예고!' : it.t === 'move' ? '이동' : it.why ?? '대기';
       list.append(h('div', { class: 'enemy-row' },
-        h('span', { class: u.shiny ? 'shiny-name' : '' }, u.shiny ? `✨ 빛나는 ${d.name}` : d.name, this.shielded(u) ? ' 🛡' : '', u.revived ? ' (부활)' : ''),
+        h('span', { class: u.shiny ? 'shiny-name' : u.pre ? 'pre-name' : '' }, u.shiny ? `✨ 빛나는 ${d.name}` : this.mobName(u), this.shielded(u) ? ' 🛡' : '', u.revived ? ' (부활)' : '', u.under ? ' (땅속)' : '', u.loot ? ` 💰${u.loot}G` : ''),
         h('span', { class: 'muted' }, `HP ${u.hp}/${u.maxHp}`, this.synergy(u).bonus ? h('b', { class: 'syn' }, ` ${this.synergy(u).why} +1`) : ''),
         h('span', { class: `intent ${it?.t ?? ''}` }, u.retaliating ? `반격 태세 ${Math.round(DIFFS[G.diff].retaliate * 100)}%` : itxt),
-        h('div', { class: 'small muted w100' }, ...termify(scholar ? `공격 ${u.atk} · ${d.desc}` : d.desc), u.shiny ? ' 8방향 1칸으로도 움직이고 공격한다.' : ''),
+        h('div', { class: 'small muted w100' }, ...termify(scholar ? `공격 ${u.atk} · ${d.desc}` : d.desc), u.shiny ? ' 8방향 1칸으로도 움직이고 공격한다.' : '', u.pre ? ` ${PRE_NAME[u.pre]}: ${PRE_DESC[u.pre]}` : ''),
       ));
     }
     if (this.lines.length) list.append(h('p', { class: 'hint warn-text' }, '보라색 줄 = 다음 적 턴에 체크 라인이 2 피해를 준다 (적도 맞는다).'));

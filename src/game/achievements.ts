@@ -11,6 +11,7 @@ import { MOBS, MobId } from '../data/mobs';
 import { AreaId } from '../data/areas';
 import { KIBO } from '../data/kibo';
 import { MATS, MAT_ORDER } from '../data/materials';
+import { BASES } from '../data/gear';
 import { h, modal, toast } from '../ui/dom';
 import { loreAll, loreDone } from '../ui/lore';
 import { qst } from './quests';
@@ -95,7 +96,8 @@ const HOWS: [string, string][] = [['melee', '공격'], ['knight', 'L자 공격']
 const howN = () => HOWS.filter(([k]) => G.flags[`how_${k}`]).length;
 const BOSSES: MobId[] = ['strawking', 'misqueen', 'blunder'];
 const ELITES: MobId[] = ['hound', 'bonelord'];
-const coreKinds = (m: Record<string, number | undefined>) => Object.entries(m).filter(([id, n]) => n && !MATS[id as keyof typeof MATS].binder);
+/** 손에 넣어 본 장비 종류 수 (밑판 기준) */
+const seenGear = () => Object.keys(G.flags).filter((k) => k.startsWith('seen_') && BASES[k.slice(5)]).length;
 
 export const ACHS: Ach[] = [
   // ---------- 모험 ----------
@@ -150,18 +152,19 @@ export const ACHS: Ach[] = [
   { id: 'awake1', cat: 'battle', parent: 'first_win', frame: 'goal', name: '깨어난 것을 잠재우다', desc: '각성한 보스를 처음 쓰러뜨렸다.', ev: 'awakeWin' },
   { id: 'awake3', cat: 'battle', parent: 'awake1', frame: 'challenge', name: '세 번의 각성', desc: '각성한 밀짚왕·퀸·킹을 모두 쓰러뜨렸다.', ev: 'awakeWin', test: () => !!(G.flags.boss_awake_dead && G.flags.queen_awake_dead && G.flags.king_awake_dead) },
   { id: 'daily1', cat: 'battle', parent: 'first_win', name: '오늘의 기보', desc: '오늘의 기보를 처음 해냈다.', ev: 'daily' },
-  { id: 'set1', cat: 'forge', parent: 'first_craft', frame: 'goal', name: '세트 완성', desc: '같은 계열 장비 세 개로 세트 효과를 켰다.', ev: '*', test: () => loadout().sets.length > 0 },
+  { id: 'set1', cat: 'forge', parent: 'first_craft', frame: 'goal', name: '세트 완성', desc: '같은 세트 장비 세 개로 세트 효과를 켰다.', ev: '*', test: () => loadout().sets.length > 0 },
   { id: 'c_ally_boss', cat: 'battle', parent: 'first_win', frame: 'goal', name: '함께 둔 마지막 수', desc: '동료가 보스에게 마지막 일격을 넣었다.', ev: 'battleWin', test: (d) => W(d).hows.some((x) => x.how === 'ally' && BOSSES.includes(x.mob)) },
 
   // ---------- 대장간 ----------
-  { id: 'first_craft', cat: 'forge', name: '첫 망치질', desc: '장비를 처음 만들었다.', ev: 'craft' },
+  { id: 'first_craft', cat: 'forge', name: '첫 망치질', desc: '대장간에서 장비를 처음 개조했다.', ev: 'craft' },
   { id: 'perfect', cat: 'forge', parent: 'first_craft', name: '완벽한 한 방', desc: '망치질에서 금빛 칸을 맞혔다.', ev: 'hammer', test: (q) => q === 1 },
   { id: 'hstreak3', cat: 'forge', parent: 'perfect', frame: 'challenge', name: '세 번 연속 금빛', desc: '망치질로 세 번 연달아 금빛 칸을 맞혔다.', ev: 'hstreak', test: (n) => (n as number) >= 3, progress: () => [Math.min(3, num('hstreak')), 3] },
   { id: 'master', cat: 'forge', parent: 'first_craft', frame: 'goal', name: '명장', desc: '장비를 +3까지 강화했다.', ev: 'enhance', test: (lv) => lv === 3 },
-  { id: 'reforge', cat: 'forge', parent: 'first_craft', name: '녹여서 다시', desc: '장비를 처음 재련했다.', ev: 'reforge' },
-  { id: 'c_mono', cat: 'forge', parent: 'first_craft', frame: 'goal', name: '한 가지 재료로', desc: '섬유를 빼고 한 종류의 재료만 4개 이상 넣어 장비를 만들었다.', ev: 'craft', test: (it) => { const k = coreKinds((it as { mats: Record<string, number> })?.mats ?? {}); return k.length === 1 && (k[0][1] ?? 0) >= 4; } },
-  { id: 'c_rainbow', cat: 'forge', parent: 'first_craft', frame: 'goal', name: '무지개 합금', desc: '서로 다른 재료 다섯 가지를 섞어 장비를 만들었다.', ev: 'craft', test: (it) => coreKinds((it as { mats: Record<string, number> })?.mats ?? {}).length >= 5 },
-  { id: 'recipes10', cat: 'forge', parent: 'first_craft', frame: 'goal', name: '레시피 수집가', desc: '서로 다른 조합 10가지로 장비를 만들었다.', ev: 'craft', test: () => G.recipes.length >= 10, progress: () => [Math.min(10, G.recipes.length), 10] },
+  { id: 'reforge', cat: 'forge', parent: 'first_craft', name: '녹여서 다시', desc: '장비를 처음 분해했다.', ev: 'reforge' },
+  // 장비 개편: 재료 조합 업적(한 가지 재료로·무지개 합금·레시피 수집가)은 개조·품질·수집 업적으로 바뀌었다 (id·보상은 그대로)
+  { id: 'c_mono', cat: 'forge', parent: 'first_craft', frame: 'goal', name: '꽉 찬 개조 칸', desc: '장비 하나의 개조 칸을 세 칸 모두 채웠다.', ev: 'craft', test: (it) => ((it as { mods?: unknown[] })?.mods?.length ?? 0) >= 3 },
+  { id: 'c_rainbow', cat: 'forge', parent: 'first_craft', frame: 'goal', name: '걸작', desc: '품질 100% 걸작 장비를 손에 넣었다.', ev: 'gear', test: (it) => (it as { q?: number })?.q === 100 },
+  { id: 'recipes10', cat: 'forge', parent: 'first_craft', frame: 'goal', name: '장비 수집가', desc: '서로 다른 장비 10종을 손에 넣었다.', ev: 'gear', test: () => seenGear() >= 10, progress: () => [Math.min(10, seenGear()), 10] },
   { id: 'fullgear', cat: 'forge', parent: 'first_craft', frame: 'goal', name: '완전 무장', desc: '다섯 부위를 모두 장착했다.', ev: '*', test: () => SLOTS.every((s) => G.equip[s]) },
 
   // ---------- 수집 ----------

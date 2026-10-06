@@ -1,7 +1,8 @@
 // 행마(움직임) 규칙: 모든 이동·공격 패턴은 이 조각들의 합이다.
-import { DIAG, JUMP2, KING, KNIGHT, ORTH, RING2, RING3, Vec, key, sameSet } from './geom';
+import { ALFIL, DIAG, JUMP2, KING, KNIGHT, ORTH, RING2, RING3, Vec, key, sameSet } from './geom';
 
-export type RuleKind = 'step' | 'slide' | 'leap';
+/** hop = 메뚜기: 줄을 따라가다 처음 만나는 말을 넘어 바로 뒤 칸으로 (range = 말을 찾는 거리) */
+export type RuleKind = 'step' | 'slide' | 'leap' | 'hop';
 export type RuleMode = 'move' | 'attack' | 'both';
 
 export interface MoveRule {
@@ -40,6 +41,23 @@ export function genTargets(rules: MoveRule[], from: Vec, g: Grid): Targets {
     const canMove = r.mode !== 'attack';
     const canAtk = r.mode !== 'move';
     for (const [dx, dy] of r.dirs) {
+      if (r.kind === 'hop') {
+        // 줄 위 처음 만나는 말(적이든 아니든)을 넘어 바로 뒤 칸. 벽은 넘지 못한다
+        for (let i = 1; i <= r.range; i++) {
+          const x = from[0] + dx * i;
+          const y = from[1] + dy * i;
+          if (x < 0 || y < 0 || x >= g.w || y >= g.h || !g.passable(x, y)) break;
+          if (!g.occ(x, y)) continue;
+          const lx = x + dx;
+          const ly = y + dy;
+          if (lx < 0 || ly < 0 || lx >= g.w || ly >= g.h || !g.passable(lx, ly)) break;
+          const o = g.occ(lx, ly);
+          if (o === 'enemy' && canAtk) at.set(key(lx, ly), [lx, ly]);
+          else if (!o && canMove) mv.set(key(lx, ly), [lx, ly]);
+          break;
+        }
+        continue;
+      }
       if (r.leg && r.kind === 'leap' && Math.abs(dx) + Math.abs(dy) === 3) {
         const lx = from[0] + (Math.abs(dx) === 2 ? Math.sign(dx) : 0);
         const ly = from[1] + (Math.abs(dy) === 2 ? Math.sign(dy) : 0);
@@ -75,6 +93,11 @@ export function previewPattern(rules: MoveRule[], R = 3): Map<string, RuleMode> 
   };
   for (const r of rules) {
     for (const [dx, dy] of r.dirs) {
+      // 메뚜기: 빈 판에서는 '바로 옆 말을 넘었을 때' 닿는 두 칸째로 보여 준다
+      if (r.kind === 'hop') {
+        if (Math.abs(dx * 2) <= R && Math.abs(dy * 2) <= R) add(key(dx * 2, dy * 2), r.mode);
+        continue;
+      }
       const steps = r.kind === 'slide' ? r.range : 1;
       for (let i = 1; i <= steps; i++) {
         const x = dx * i;
@@ -88,11 +111,18 @@ export function previewPattern(rules: MoveRule[], R = 3): Map<string, RuleMode> 
 }
 
 export function dirName(d: Vec[]) {
+  // 개조로 붙은 한 방향: 화살표로
+  if (d.length === 1) {
+    const [x, y] = d[0];
+    const a = ({ '0,-1': '↑', '1,-1': '↗', '1,0': '→', '1,1': '↘', '0,1': '↓', '-1,1': '↙', '-1,0': '←', '-1,-1': '↖' } as Record<string, string>)[`${Math.sign(x)},${Math.sign(y)}`] ?? '·';
+    return Math.abs(x) + Math.abs(y) === 3 ? `${a}쪽 L자` : Math.max(Math.abs(x), Math.abs(y)) === 2 ? `${a}쪽 두 칸 뛰기` : `${a}쪽`;
+  }
   if (sameSet(d, KING)) return '8방향';
   if (sameSet(d, ORTH)) return '상하좌우';
   if (sameSet(d, DIAG)) return '대각선';
   if (sameSet(d, KNIGHT)) return 'L자 점프';
   if (sameSet(d, JUMP2)) return '상하좌우 2칸 점프';
+  if (sameSet(d, ALFIL)) return '대각선 2칸 점프';
   if (sameSet(d, RING3)) return '??? 3칸 도약';
   if (sameSet(d, [...RING2, ...RING3])) return '제멋대로 도약';
   return '특수 방향';
@@ -101,6 +131,7 @@ export function dirName(d: Vec[]) {
 export function describeRule(r: MoveRule) {
   if (r.gun) return '8방향 4칸까지 사격 (3 피해 · 쏜 뒤 2턴 재장전)';
   const m = r.mode === 'move' ? '이동' : r.mode === 'attack' ? '공격' : '이동·공격';
+  if (r.kind === 'hop') return `${dirName(r.dirs)} 줄에서 말 하나를 넘어 ${m}`;
   const k = r.kind === 'slide' ? `${r.range}칸까지` : r.kind === 'step' ? '1칸' : '';
   return `${dirName(r.dirs)} ${k} ${m}${r.pierce ? ' (관통)' : ''}`.replace(/\s+/g, ' ');
 }

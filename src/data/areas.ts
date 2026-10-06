@@ -121,6 +121,7 @@ export const AREAS: Record<AreaId, AreaDef> = {
       table: [
         { sprite: 'slime', mover: 'none', party: [['slime', 'slime'], ['slime', 'rat']] },
         { sprite: 'rat', mover: 'wander', party: [['rat', 'rat', 'rat'], ['rat', 'rat']] },
+        { sprite: 'hopper', mover: 'wander', party: [['hopper', 'rat'], ['hopper', 'hopper', 'slime']] },
       ],
     },
   },
@@ -143,6 +144,7 @@ export const AREAS: Record<AreaId, AreaDef> = {
       table: [
         { sprite: 'slime', mover: 'none', party: [['slime', 'slime', 'slime']] },
         { sprite: 'bat', mover: 'wander', party: [['bat', 'bat'], ['bat', 'slime']] },
+        { sprite: 'crow', mover: 'wander', party: [['crow', 'bat'], ['crow', 'crow', 'slime']] },
       ],
     },
   },
@@ -162,8 +164,11 @@ export const AREAS: Record<AreaId, AreaDef> = {
       { id: 'gate1', x: 6, y: 4, sprite: 'thorn', enc: 'gate_hills', mover: 'none', once: 'gate_hills' },
     ],
     random: {
-      n: 1,
-      table: [{ sprite: 'rat', mover: 'wander', party: [['rat', 'rat', 'slime']] }],
+      n: 2,
+      table: [
+        { sprite: 'rat', mover: 'wander', party: [['rat', 'rat', 'slime']] },
+        { sprite: 'mole', mover: 'none', party: [['mole', 'rat'], ['mole', 'mole', 'hopper']] },
+      ],
     },
   },
   throne: {

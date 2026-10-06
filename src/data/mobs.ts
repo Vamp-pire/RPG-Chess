@@ -1,16 +1,17 @@
-﻿import { DIAG, JUMP2, KING, KNIGHT, ORTH, RING2, RING3 } from '../core/geom';
+﻿import { ALFIL, DIAG, JUMP2, KING, KNIGHT, ORTH, RING2, RING3 } from '../core/geom';
 import { MoveRule } from '../core/rules';
 import { MatId } from './materials';
 
 export type MobId =
-  | 'slime' | 'slimelet' | 'rat' | 'bat' | 'golem' | 'thorn' | 'hound'
+  | 'slime' | 'slimelet' | 'rat' | 'bat' | 'golem' | 'thorn' | 'hound' | 'hopper' | 'mole' | 'crow'
   | 'strawking' | 'strawpawn' | 'rook'
   | 'toad' | 'spider' | 'skeleton' | 'wraith' | 'bonelord' | 'misqueen' | 'echo' | 'blunder'
   | 'wolf' | 'icesprite' | 'snowpawn' | 'frostbishop' | 'tower' | 'giant' | 'frozenking'
   | 'inkblot' | 'inkdrop' | 'erased' | 'annot' | 'bookworm' | 'double' | 'author';
 
 export type MobAI = 'basic' | 'charge' | 'static' | 'boss' | 'pawn' | 'queen' | 'turret';
-export type MobTag = 'root' | 'revive' | 'ghost' | 'summoner' | 'breath';
+/** burrow = 땅속에 숨었다가 예고한 칸에서 튀어나온다, thief = 골드를 훔쳐 달아난다 */
+export type MobTag = 'root' | 'revive' | 'ghost' | 'summoner' | 'breath' | 'burrow' | 'thief';
 
 export interface MobDef {
   id: MobId;
@@ -43,6 +44,10 @@ export const MOBS: Record<MobId, MobDef> = {
   golem: { id: 'golem', name: '이끼 골렘', hp: 4, atk: 2, move: [step(ORTH)], attack: [step(ORTH)], ai: 'charge', drops: [['moss', 2]], rare: ['crack', 0.1], desc: '일직선으로 돌진한다. 돌진 뒤에는 한 턴 굳는다.', dex: true, color: '#7d9a62' },
   thorn: { id: 'thorn', name: '가시덤불', hp: 3, atk: 1, move: [], attack: [step()], ai: 'static', drops: [['thorn', 1], ['fiber', 1]], desc: '움직이지 않는다. 주변 8칸을 매 턴 찌른다.', dex: true, color: '#a07a44' },
   hound: { id: 'hound', name: '낙오 사냥개', hp: 7, atk: 2, move: [{ kind: 'slide', dirs: KING, range: 4, mode: 'both' }], attack: [{ kind: 'slide', dirs: KING, range: 4, mode: 'both' }], ai: 'basic', drops: [['fang', 1], ['moss', 1]], rare: ['shard', 0.25], desc: '엘리트. 8방향 4칸까지 달려든다. 한 번 물고 나면 숨을 고른다.', dex: true, color: '#c96a5a', tags: ['breath'] },
+  // 1지역 새 몹 (변형 체스 말에서): 메뚜기 · 두더지 · 까마귀
+  hopper: { id: 'hopper', name: '메뚜기', hp: 2, atk: 1, move: [{ kind: 'hop', dirs: KING, range: 7, mode: 'both' }, step(ORTH)], attack: [{ kind: 'hop', dirs: KING, range: 7, mode: 'both' }], ai: 'basic', drops: [['leg', 1]], rare: ['silver', 0.04], desc: '줄을 따라가다 처음 만나는 말을 넘어 바로 뒤 칸에 내려앉는다. 넘을 말이 없으면 한 칸씩 걷는다. 옆에 붙은 말은 치지 못한다.', dex: true, color: '#9cc25a' },
+  mole: { id: 'mole', name: '두더지', hp: 3, atk: 1, move: [step(ORTH)], attack: [step()], ai: 'basic', drops: [['claw', 1]], rare: ['crack', 0.08], desc: '땅속으로 숨어 한 턴 동안 맞지 않는다. 튀어나올 칸이 미리 보이니 그 곁에서 비켜서자.', dex: true, color: '#a88a6a', tags: ['burrow'] },
+  crow: { id: 'crow', name: '까마귀', hp: 2, atk: 1, move: [{ kind: 'leap', dirs: ALFIL, range: 1, mode: 'both' }, step(DIAG)], attack: [{ kind: 'leap', dirs: ALFIL, range: 1, mode: 'both' }], ai: 'basic', drops: [['feather', 1]], rare: ['shard', 0.05], desc: '대각선으로 두 칸씩 뛰어 쪼아 댄다. 쪼이면 골드를 물어 가고, 잡으면 돌려받는다.', dex: true, color: '#4a4a5e', tags: ['thief'] },
   strawking: { id: 'strawking', name: '밀짚왕', hp: 9, atk: 2, move: [step()], attack: [step()], ai: 'boss', drops: [['crown', 1], ['shard', 1]], desc: '보스.', dex: true, color: '#e8c35a' },
   strawpawn: { id: 'strawpawn', name: '밀짚 폰', hp: 1, atk: 1, move: [], attack: [], ai: 'pawn', drops: [['fiber', 1]], desc: '앞으로 1칸, 대각선 앞을 공격한다.', color: '#e8c35a' },
   rook: { id: 'rook', name: '고집쟁이 룩', hp: 6, atk: 2, move: [{ kind: 'slide', dirs: ORTH, range: 7, mode: 'both' }], attack: [{ kind: 'slide', dirs: ORTH, range: 7, mode: 'both' }], ai: 'basic', drops: [['moss', 2]], desc: '상하좌우 끝까지.', color: '#555' },

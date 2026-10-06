@@ -11,8 +11,10 @@ import { runEvent } from './events';
 import { kiboHere, kiboPlace, kiboTalk } from './kibo';
 import { DIFFS } from '../core/difficulty';
 import { loreText } from '../ui/lore';
-import { MIN_CORE, SLOTS, SLOT_INFO, Slot, itemStats } from '../core/items';
-import { G, HP_MUL, SLOTS_N, addBag, freshMats, align, baseRules, curSlot, emit, equipped, getLog, hasJob, hasSave, load, log, loadout, matHave, maxHp, newGame, promo2Of, onLog, pieceTitle, save, setSlot, slotInfo, wipeSave, on } from '../core/state';
+import { Item, Q_TIERS, SLOTS, SLOT_INFO, Slot, itemStats } from '../core/items';
+import { FAM_NAME } from '../data/gear';
+import { rollGear } from './loot';
+import { G, HP_MUL, SLOTS_N, addBag, freshMats, align, giveStarter, usable, baseRules, curSlot, emit, equipped, getLog, hasJob, hasSave, load, log, loadout, matHave, maxHp, newGame, promo2Of, onLog, pieceTitle, save, setSlot, slotInfo, wipeSave, on } from '../core/state';
 import { AREAS, AreaId, EncDef, FIXED_ENCS, OPPOSITE, ObjDef, SIDE_NAME, Side, expandEnc, randomEnc, sideCells } from '../data/areas';
 import { ABILITIES, MATS, MAT_ORDER, MatId } from '../data/materials';
 import { MOBS, MobId } from '../data/mobs';
@@ -31,8 +33,8 @@ import { Battle, BattleResult } from './battle';
 import { Explore, RMob, RObj, exitOpen } from './explore';
 import { talk } from './npcs';
 import { eggGold, eggKey, eggLose, eggShopOpen, eggTime, eggWall } from './eggs';
-import { inTower, startTower, towerBest, towerFell, towerUnlocked } from './tower';
-import { QUESTS, craftCount, guideFor, rewardHint, initQuestHooks, progressText, q, qComplete, qOn, qReady, qStart, qst, trackedQuest } from './quests';
+import { inTower, startTower, towerBest, towerFell, towerRegion, towerUnlocked } from './tower';
+import { QUESTS, guideFor, rewardHint, initQuestHooks, progressText, q, qComplete, qOn, qReady, qStart, qst, trackedQuest } from './quests';
 
 type Mode = 'title' | 'explore' | 'battle';
 
@@ -165,7 +167,7 @@ export class App {
     const box = h('div', { class: 'title-screen' },
       h('div', { class: 'title-art' }, knight, h('img', { src: pieceSrc('wb'), alt: '' }), h('img', { src: pieceSrc('wp'), alt: '' })),
       h('h1', {}, '기보 밖의 한 수'),
-      h('p', { class: 'tagline' }, '체스 말 하나로 떠나는 조합·강화 RPG'),
+      h('p', { class: 'tagline' }, '체스 말 하나로 떠나는 장비·개조 RPG'),
       // 진엔딩(덮인 기보)을 본 사람만: 제목 아래 새 기보의 첫 줄
       meta().endings.includes('closed') ? h('p', { class: 'title-firstline' }, '1. 폰, 기보 밖으로.') : null,
     );
@@ -238,6 +240,14 @@ export class App {
     setTimeout(() => eggTime(), 1500);
     this.mode = 'explore';
     this.explore.enter(G.area);
+    // 장비 개편 전 저장: 갖고 있던 장비는 '옛 장비'로 그대로 쓰고, 직업이 있으면 계열 시작 무기를 준다
+    if (!G.flags.gear2) {
+      G.flags.gear2 = true;
+      const a = align();
+      if (a) giveStarter(a);
+      if (!fresh && G.items.some((it) => !it.base)) setTimeout(() => toast('장비 체계가 바뀌었어요: 이제 몹이 장비를 떨어뜨리고, 대장간은 개조·강화를 해요. 갖고 있던 장비는 「옛 장비」로 그대로 쓸 수 있어요.', 'info', 7000), 1200);
+      save();
+    }
     // 옛 저장: 새로 생긴 이야기 줄기를 이어 준다
     if (G.promoted2 && qst('main_r3') === 'locked' && !G.flags.king_dead) qStart('main_r3', true);
     for (const c of G.party) qStart(c === 'soldier' ? 'cq_soldier' : c === 'ghostknight' ? 'cq_ghost' : 'cq_priest', true);
@@ -258,6 +268,7 @@ export class App {
   }
 
   // ---------- 안내 ----------
+  // (장비 개편: 장비는 몹이 떨어뜨린다 — 제작 횟수 대신 장착한 부위 수로 준비를 잰다)
   guideTarget() {
     if (!prefs().guide) return null;
     // 체력이 바닥이면 쉬는 곳이 먼저
@@ -275,7 +286,7 @@ export class App {
     if (id) {
       // 보스를 향하는데 장비가 모자라면 먼저 재료 사냥으로 안내한다
       // 장비 안내는 '만든 횟수'로 센다 (같은 부위를 다시 만들어도 1회)
-      const gearN = craftCount();
+      const gearN = wornCount();
       const NEED: Record<string, number> = { main_boss: 3, main_r2: 4, main_r3: 4, main_r4: 5 };
       if (NEED[id] && gearN < NEED[id]) {
         const need = NEED[id];
@@ -284,7 +295,8 @@ export class App {
         const reg = AREAS[G.area].region;
         const F: [AreaId, string, string] = reg >= 4 ? ['margin', 'forge4', '여백의 모루'] : reg === 3 ? ['frostpost', 'smith3', '초소 대장장이'] : reg === 2 ? ['camp', 'smith', '떠돌이 대장장이'] : ['town', 'forge', '대장간'];
         const up = this.canUpgrade();
-        if (up) return { id: 'farm-forge', area: F[0], obj: F[1], text: `${F[2]}에서 ${SLOT_INFO[up].name} 만들기 (제작 ${gearN}/${need}회)` };
+        if (up) return { id: 'farm-equip', area: G.area, text: `장비 창(I)에서 ${SLOT_INFO[up].name} 장착하기 (장착 ${gearN}/${need}부위)` };
+        void F;
         const r2 = id !== 'main_boss';
         const here = AREAS[G.area].random || AREAS[G.area].mobs.length ? G.area : null;
         // 아직 못 본 재료가 나오는 곳을 먼저 권한다
@@ -292,7 +304,7 @@ export class App {
         const r2Pick: AreaId = id === 'main_r4' ? (G.area === 'fold' ? 'inkwell' : 'fold') : id === 'main_r3' ? (!G.flags.got_fur ? 'tundra' : G.area === 'tundra' ? 'glacier' : 'tundra') : !G.flags.got_silk || !G.flags.got_skin ? 'marsh' : 'ruins';
         // 지금 지역에 몹이 남아 있으면 여기서 모은다 (다른 지역으로 핑퐁하지 않게)
         const farmArea = (here && this.explore.mobs.length && AREAS[G.area].region === AREAS[r2 ? r2Pick : r1Pick].region ? here : r2 ? r2Pick : r1Pick) as AreaId;
-        return { id: 'farm', area: farmArea, text: `재료 모으기 (제작 ${gearN}/${need}회 → 대장간)` };
+        return { id: 'farm', area: farmArea, text: `장비 모으기 (장착 ${gearN}/${need}부위)` };
       }
       const g = guideFor(id);
       if (g) return { id, ...g };
@@ -304,27 +316,9 @@ export class App {
     return null;
   }
 
-  /** 가진 재료로 쓸모 있게 만들 수 있는 부위 (빈 부위를 먼저. 무기·신발은 새 칸, 방어구는 특성 재료). 없으면 null */
+  /** 비어 있는 부위에 낄 수 있는 장비가 가방에 있으면 그 부위 (없으면 null) */
   canUpgrade(): Slot | null {
-    const lo = loadout();
-    const usable = MAT_ORDER.filter((m) => !MATS[m].binder && !MATS[m].key && matHave(m) > 0);
-    const found: Slot[] = [];
-    for (const slot of ['weapon', 'boots'] as const) {
-      // 비어 있거나, 끼고 있는 장비가 새 칸을 하나도 못 주면 다시 만들 가치가 있다
-      if (G.equip[slot] && !this.uselessGear(slot)) continue;
-      for (const m of usable) {
-        const f = MATS[m].frag;
-        if (!f || matHave(m) < MIN_CORE[slot]) continue;
-        if (newSquares(lo.rules, [{ ...f, mode: slot === 'weapon' ? 'attack' : 'move' }]) > 0) found.push(slot);
-      }
-    }
-    const coreN = usable.reduce((s, m) => s + matHave(m), 0);
-    if (!G.equip.armor && usable.filter((m) => MATS[m].trait).reduce((s, m) => s + matHave(m), 0) >= MIN_CORE.armor) found.push('armor');
-    // 각인: 능력 재료 + 핵심 재료 4개 / 유물: 균열 이끼 2개나 가시 덩굴 3개 + 핵심 재료 5개
-    if (!G.equip.engrave && usable.some((m) => MATS[m].ability && ABILITIES[MATS[m].ability!].slot === 'engrave') && coreN >= MIN_CORE.engrave) found.push('engrave');
-    if (!G.equip.relic && (matHave('crack') >= 2 || matHave('thorn') >= 3) && coreN >= MIN_CORE.relic) found.push('relic');
-    // 빈 부위(장비 수가 느는 쪽)를 먼저 권한다
-    return found.find((s) => !G.equip[s]) ?? found[0] ?? null;
+    return SLOTS.find((sl) => !G.equip[sl] && G.items.some((it) => it.slot === sl && usable(it))) ?? null;
   }
 
   /** 끼고 있는 무기/신발이 기본 행마와 전부 겹치는가 */
@@ -443,9 +437,10 @@ export class App {
     const g = this.guideTarget();
     if (!g) return '';
     // 보스를 향하는데 장비가 거의 없으면 한마디 덧붙인다
-    const gearN = craftCount();
-    const warn = g.id === 'farm' ? '' : (g.id === 'main_boss' && gearN < 3) || (g.id === 'main_r2' && gearN < 4) ? ' (장비가 부족해 보인다: 대장간부터)' : '';
-    if (g.id === 'farm' && g.area === G.area) return `${g.text} — 몹 칸에 닿으면 전투. 재료가 모이면 마을 대장간으로`;
+    const gearN = wornCount();
+    const warn = g.id === 'farm' ? '' : (g.id === 'main_boss' && gearN < 3) || (g.id === 'main_r2' && gearN < 4) ? ' (장비가 부족해 보인다: 몹을 잡아 장비부터)' : '';
+    if (g.id === 'farm-equip') return g.text;
+    if (g.id === 'farm' && g.area === G.area) return `${g.text} — 몹 칸에 닿으면 전투. 몹이 장비를 떨어뜨려요`;
     if (g.area === G.area) return `${g.text} — 판 위 금빛 ★ 칸으로 가기${warn}`;
     const step = this.routeStep(G.area, g.area);
     if (!step) return `${g.text} — ${AREAS[g.area].name} (아직 길이 없다)`;
@@ -628,6 +623,7 @@ export class App {
       return;
     }
     // 승리
+    const firstKills = [...new Set(kills.filter((k) => !((G.dex[k] ?? 0) > 0)))];
     const drops = new Map<MatId, number>();
     const rareGot: MatId[] = [];
     const add = (id: MatId, n: number) => drops.set(id, (drops.get(id) ?? 0) + n);
@@ -635,7 +631,8 @@ export class App {
       const d = MOBS[k];
       G.dex[k] = (G.dex[k] ?? 0) + 1;
       // 기본 재료는 난이도별 확률로 (열쇠 재료·보스 왕관은 늘 준다)
-      for (const [id, n] of d.drops) if (MATS[id].key || d.ai === 'boss' || d.ai === 'queen' || Math.random() < DIFFS[G.diff].drop) add(id, n);
+      // 장비 개편: 재료는 개조·강화에만 쓰여서 예전의 75%만 떨어진다
+      for (const [id, n] of d.drops) if (MATS[id].key || d.ai === 'boss' || d.ai === 'queen' || Math.random() < DIFFS[G.diff].drop * 0.75) add(id, n);
       if (d.rare && Math.random() < d.rare[1] * DIFFS[G.diff].rare + (hasJob('hunter') ? 0.05 : 0)) {
         add(d.rare[0], 1);
         if (MATS[d.rare[0]].rare) rareGot.push(d.rare[0]);
@@ -668,6 +665,9 @@ export class App {
     G.gold += gold;
     G.battles++;
     for (const [id, n] of drops) addBag(id, n);
+    // 장비 드랍 (보스는 처음 쓰러뜨릴 때 내 계열 고유 무기)
+    const bossFirst: MobId | undefined = enc === FIXED_ENCS.boss && !G.flags.boss_dead ? 'strawking' : enc === FIXED_ENCS.queen && !G.flags.queen_dead ? 'misqueen' : enc === FIXED_ENCS.king && !G.flags.king_dead ? 'frozenking' : undefined;
+    const gear = rollGear({ kills, shiny: b?.shinyKills ?? [], prefixed: b?.preKills ?? [], first: firstKills, region: inTower() ? towerRegion() : AREAS[G.area].region, bossFirst, awake: !!enc?.awake });
     if (m) {
       if (m.fixed) G.flags[`cleared_${m.fixed.id}`] = true;
       // 한 번만 나오는 고정 몹(문지기·보스)은 쓰러뜨리면 표시를 남긴다
@@ -752,7 +752,7 @@ export class App {
     onWin?.();
     save();
     const memory = enc === FIXED_ENCS.boss ? 0 : enc === FIXED_ENCS.queen ? 1 : enc === FIXED_ENCS.king ? 2 : -1;
-    if (!fx.instant) { sfx('win'); this.showSpoils(drops, gold, rareGot, bossText, memory >= 0 ? () => bossMemory(memory as 0 | 1 | 2) : undefined); }
+    if (!fx.instant) { sfx('win'); this.showSpoils(drops, gold, rareGot, bossText, memory >= 0 ? () => bossMemory(memory as 0 | 1 | 2) : undefined, gear); }
   }
 
   resolveRookFight() {
@@ -761,9 +761,17 @@ export class App {
     this.explore.removeObj('rook');
   }
 
-  showSpoils(drops: Map<MatId, number>, gold: number, rare: MatId[], bossText: string, after?: () => Promise<void>) {
+  showSpoils(drops: Map<MatId, number>, gold: number, rare: MatId[], bossText: string, after?: () => Promise<void>, gear: Item[] = []) {
     const list = h('div', { class: 'spoils' });
     let i = 0;
+    // 장비는 재료보다 먼저, 품질 색으로
+    for (const it of gear) {
+      const s = itemStats(it);
+      const t = Q_TIERS[s.tier ?? 0];
+      const on = G.equip[it.slot] === it.id;
+      const tag = !usable(it) ? `${FAM_NAME[s.fam!]} 계열 — 지금은 못 써요` : on ? '바로 장착!' : `${t.name} ${s.q}%`;
+      list.append(h('div', { class: `spoil gear ${(s.tier ?? 0) >= 2 ? 'rare' : ''}`, style: { animationDelay: `${i++ * 90}ms`, '--qc': t.color } }, h('span', { class: 'gear-ico' }, SLOT_ICON[it.slot]), h('b', { style: { color: t.color } }, s.name), h('span', { class: 'muted small' }, SLOT_INFO[it.slot].name), h('em', { class: 'spoil-tag' }, tag)));
+    }
     for (const [id, n] of drops) {
       const isRare = MATS[id].rare || MATS[id].key;
       const fresh = freshMats.has(id);
@@ -771,11 +779,11 @@ export class App {
     }
     freshMats.clear();
     // 희귀·새 재료는 따로 알림을 띄우지 않고 이 창 한 장에서 보여 준다
-    const body = h('div', {}, list, h('p', { class: 'spoil-sum' }, `+${gold}G · 재료 ${[...drops.values()].reduce((a, b) => a + b, 0)}개 → 가방`));
+    const body = h('div', {}, list, h('p', { class: 'spoil-sum' }, `+${gold}G · 재료 ${[...drops.values()].reduce((a, b) => a + b, 0)}개${gear.length ? ` · 장비 ${gear.length}개` : ''} → 가방`));
     if (bossText) cutin('승리', bossText, 'win').then(() => (after ? after() : undefined)).then(() => modal('전리품', body));
     else modal('전리품', body);
     void rare;
-    this.tip('drop', '얻은 재료는 가방에 들어가요. 쓰러지면 가방 속 재료를 잃을 수 있으니 여관 창고에 맡겨 두면 안전해요. 몹의 움직임은 [도감]에서 볼 수 있어요.', { act: '재료가 모이면 마을 대장간에서 장비를 만들어요' });
+    this.tip('drop', '몹은 재료와 함께 가끔 장비를 떨어뜨려요. 비어 있는 부위는 바로 장착되고, 나머지는 [장비] 창에 쌓여요. 재료는 대장간에서 장비를 개조·강화하는 데 써요. 쓰러지면 가방 속 재료를 잃을 수 있으니 여관 창고에 맡겨 두세요.', { act: '장비 창(I)에서 얻은 장비를 비교해 보세요' });
   }
 
   // ---------- 오브젝트 ----------
@@ -806,7 +814,7 @@ export class App {
     switch (d.kind) {
       case 'forge':
         openForge(() => { clearCoach('forge', 'mastery'); refresh(); }, { craftOnly: d.id === 'smith' });
-        this.tip('forge', '재료마다 움직임 조각과 특성이 숨어 있어요. 한 재료가 30% 이상이면 그 움직임이, 40% 이상이면 특성이 붙어요.', { act: '💡 추천 조합의 [넣기]를 누른 뒤 [바로 제작]을 눌러 보세요', el: '.recs .rec .btn' });
+        this.tip('forge', '장비는 몹이 떨어뜨려요. 대장간에서는 장비의 개조 칸에 재료를 하나씩 넣어 다듬어요. 행마 재료는 방향 하나를, 특성 재료는 특성 +1을 줘요. 품질이 높은 장비일수록 칸이 많아요.', { act: '왼쪽에서 장비를 고르고 → 재료 → 효과를 골라 보세요', el: '.f-items .enh-item' });
         return;
       case 'shop':
         eggShopOpen();
@@ -922,11 +930,23 @@ export class App {
 
   recordWall() {
     eggWall();
-    const choose = () => openJobSelect((j) => {
+    const choose = (paid = 0) => openJobSelect((j) => {
       const first = !G.job;
+      const before = align();
+      // 계열(빛·어둠·중립)까지 바뀌면 값이 3배 (무기가 계열에 묶여 있어서). 모자라면 그대로 둔다
+      const extra = !first && before && jobDef(j)!.align !== before ? paid * 2 : 0;
+      if (extra && G.gold < extra) {
+        G.gold += paid;
+        toast(`계열을 바꾸려면 ${extra}G가 더 필요해요. 이름은 그대로 두었어요.`, 'bad', 3500);
+        this.refreshAll();
+        return;
+      }
+      G.gold -= extra;
       G.job = j;
       const jd = jobDef(j)!;
-      log(`🪶 직업: ${jd.name} (${ALIGN_NAMES[jd.align]})`);
+      log(`🪶 직업: ${jd.name} (${ALIGN_NAMES[jd.align]})${extra ? ` — 계열 변경 ${paid + extra}G` : ''}`);
+      const st = giveStarter(jd.align);
+      if (st) toast(`${ALIGN_NAMES[jd.align]} 계열 시작 무기: ${itemStats(st).name}`, 'good', 3500);
       if (first) {
         qComplete('main_job', { gold: 10 });
         toast('촌장 킹(벽 오른쪽)에게 말을 걸어 보자', 'info');
@@ -939,7 +959,7 @@ export class App {
     const choices: Choice[] = [{ label: '떠난다', onPick: () => {} }];
     // 누구나 길(직업·성향)을 다시 정할 수 있다 — 엔딩마다 처음부터 다시 하지 않아도 되게 (베타 의견: 엔딩이 늘어도 노가다). 중립은 싸게
     const cost = jd.align === 'neutral' ? 20 : 80;
-    choices.unshift({ label: `이름을 다시 새긴다 (${cost}G)`, note: '직업과 성향이 바뀌어요', disabled: G.gold < cost, onPick: () => { G.gold -= cost; choose(); } });
+    choices.unshift({ label: `이름을 다시 새긴다 (${cost}G)`, note: `같은 계열 안에서는 ${cost}G, 계열까지 바꾸면 ${cost * 3}G — 무기는 계열에 묶여 있어요`, disabled: G.gold < cost, onPick: () => { G.gold -= cost; choose(cost); } });
     // 마지막 보스를 쓰러뜨리고 엔딩을 본 뒤 남기로 했어도, 여기서 언제든 환생할 수 있다 (그 전에는 안 보임)
     if (G.flags.author_dead && G.flags.ending) {
       const e = G.flags.ending as EndingId;
@@ -1100,7 +1120,7 @@ export class App {
     el.append(h('div', { class: 'side-menu' },
       menu('🗺️', '지도', 'M', () => openMap({ target: this.guideTarget(), badge: (d) => this.npcBadge(d), travel: (a) => this.fastTravel(a), dest: (G.flags.dest as AreaId) || null, setDest: (a) => { G.flags.dest = a ?? ''; if (a) toast(`목적지: ${AREAS[a].name} — 금빛 화살표를 따라가세요`, 'info'); this.refreshAll(); } }), '지도 · 목적지 정하기 · 거점 이동'),
       menu('🛡️', '장비', 'I', () => openInventory(() => this.refreshAll()), '장비 바꿔 끼기 · 가방 재료 · 분해'),
-      menu('📖', '도감', 'C', () => openCodex(), '몹 · 재료 · 레시피'),
+      menu('📖', '도감', 'C', () => openCodex(), '몹 · 재료 · 장비'),
       menu('🏆', '업적', 'A', () => openAchievements(), '업적과 보상'),
       menu('❓', '도움말', 'H', () => openHelp(), '규칙과 조작'),
       menu('⚙️', '설정', 'O', () => openSettings(() => this.refreshAll(), true), '안내 · 소리 · 음악 · 글자 크기 · 세이브 코드'),
@@ -1145,7 +1165,7 @@ export class App {
     const bag = h('div', { class: 'card' }, h('div', { class: 'sub' }, '가방'));
     const bagItems = MAT_ORDER.filter((id) => G.bag[id]).map((id) => ({ id, n: G.bag[id] ?? 0 }));
     bag.append(invGrid(bagItems, { desc: (id) => loreText(id) }));
-    bag.append(h('p', { class: 'hint small bag-help' }, '재료는 대장간에서 장비로 만들어요. 쓰러지면 가방 재료 일부를 잃으니 여관 창고에 맡겨 두세요. 끼고 있는 장비를 바꾸려면 위의 [장비] 버튼을 누르세요.'));
+    bag.append(h('p', { class: 'hint small bag-help' }, '재료는 대장간에서 장비를 개조·강화하는 데 써요. 쓰러지면 가방 재료 일부를 잃으니 여관 창고에 맡겨 두세요. 장비를 바꾸려면 [장비] 버튼(I)을 누르세요.'));
     el.append(bag);
     el.append(this.logBox());
     el.append(h('div', { class: 'row gap' }, this.btn('타이틀로', () => { save(); location.reload(); }, 'ghost')));
@@ -1178,3 +1198,7 @@ export class App {
     if (old) old.replaceWith(this.logBox());
   }
 }
+
+const SLOT_ICON: Record<Slot, string> = { weapon: '⚔️', boots: '👢', armor: '🛡️', engrave: '🔱', relic: '🔮' };
+/** 쓸 수 있는 장비를 낀 부위 수 */
+const wornCount = () => SLOTS.filter((sl) => { const it = equipped(sl); return it && usable(it); }).length;

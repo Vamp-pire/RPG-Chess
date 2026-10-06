@@ -874,3 +874,35 @@ button.qline.tracked { background: #2b2213; }
 .term { text-decoration: underline dotted rgba(232,195,106,.75); text-underline-offset: 3px; cursor: help; }
 .term-tip { position: fixed; z-index: 200; max-width: 260px; padding: 8px 10px; border-radius: 8px; background: #1d160e; border: 1px solid var(--gold); box-shadow: 0 6px 18px rgba(0,0,0,.5); display: grid; gap: 3px; font-size: 13px; line-height: 1.5; pointer-events: none; }
 .term-tip b { color: var(--gold); font-size: 12.5px; }
+
+/* ===== 장비 개편: 품질·계열·개조 칸 ===== */
+.q-chip { border: 1px solid; background: transparent; font-weight: 600; }
+.chip.fam-light { background: #3a3218; color: #f2d98a; }
+.chip.fam-dark { background: #262033; color: #c8b6f0; }
+.chip.fam-neutral { background: #1e2c26; color: #9fd8b8; }
+.chip.uniq { background: #3d2a12; color: #ffcf7a; }
+.stat-list .r-uniq { border-color: #ffb84a; }
+.stat-list .r-affix { border-color: #6fb6ff; }
+.enh-item.legacy { opacity: .55; cursor: not-allowed; }
+.enh-item small { color: var(--muted); }
+.inv-item.off, .eq-slot.off { opacity: .55; }
+.small-tabs .tab { padding: 3px 9px; font-size: 12px; }
+.mod-slots { display: grid; gap: 5px; margin: 4px 0 10px; }
+.mod-slot { display: flex; align-items: center; gap: 8px; padding: 6px 9px; border-radius: 8px; font-size: 13px; }
+.mod-slot.full { background: #2c2418; border: 1px solid #5a4a2a; }
+.mod-slot.full span { flex: 1; }
+.mod-slot.empty { border: 1px dashed var(--line); }
+.mod-opts { margin-top: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; display: grid; gap: 8px; }
+.dir-pick { display: grid; gap: 3px; justify-content: start; }
+.dir-pick > * { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 6px; font-size: 15px; }
+.dir-btn { background: #3a2f1c; border: 1px solid var(--gold); color: #ffe2a0; cursor: pointer; }
+.dir-btn:hover:not(:disabled) { background: #5a4520; }
+.dir-btn.no { opacity: .35; cursor: not-allowed; border-color: var(--line); }
+.dir-me { background: #2a241c; color: var(--gold); }
+.dir-off { background: #211b15; }
+.ritual { margin-top: 12px; padding: 8px; border: 1px dashed #6a5a3a; border-radius: 8px; }
+.spoil.gear { border-color: var(--qc, var(--line)); min-width: 120px; }
+.spoil .gear-ico, .shop-row .gear-ico { font-size: 22px; line-height: 1; }
+.pre-name { color: #ffb27a; }
+.pity { margin-top: 10px; text-align: right; }
+.recipe.unseen b { color: var(--muted); }

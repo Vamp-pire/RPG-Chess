@@ -50,16 +50,16 @@ export function talk(app: App, id: string) {
         ]);
       }
       if (qst('main_boss') !== 'active' && qst('main_boss') !== 'done') {
-        return say('촌장 킹', 'wk', '"들판 너머 언덕 위 옥좌에 밀짚으로 된 왕이 앉아 있네. 판 가장자리를 지우고 있는 게 그놈이야. 기보대로라면 아무도 못 막지. 하지만 기보에 없는 자네라면…" (서두를 필요는 없다. 대장간에서 장비를 갖추고 가자)', [
+        return say('촌장 킹', 'wk', '"들판 너머 언덕 위 옥좌에 밀짚으로 된 왕이 앉아 있네. 판 가장자리를 지우고 있는 게 그놈이야. 기보대로라면 아무도 못 막지. 하지만 기보에 없는 자네라면…" (서두를 필요는 없다. 몹이 떨어뜨리는 장비를 모으고, 대장간에서 다듬어 가자)', [
           { label: '맡겠습니다', onPick: () => {
             qStart('main_boss');
-            // 첫 조합을 바로 해 볼 수 있게: 재료를 쥐여 주고 대장간부터 안내한다
+            // 첫 개조를 바로 해 볼 수 있게: 재료를 쥐여 주고 대장간부터 안내한다
             if (qst('sq_smith') === 'locked' || qst('sq_smith') === 'avail') {
               addBag('moss', 2);
               addBag('tooth', 1);
               qStart('sq_smith');
               G.flags.track = 'sq_smith';
-              toast('촌장이 이끼 돌 2개와 쥐 이빨 1개를 건넸다. 대장간에서 첫 장비를 만들어 보자.', 'good');
+              toast('촌장이 이끼 돌 2개와 쥐 이빨 1개를 건넸다. 대장간에서 무기를 개조해 보자.', 'good');
             }
           } },
           { label: '나중에', onPick: () => {} },

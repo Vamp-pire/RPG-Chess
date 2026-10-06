@@ -1,5 +1,6 @@
 import { Vec } from './geom';
-import { Item, Mats, SLOTS, Slot, itemStats } from './items';
+import { Item, Mats, SLOTS, Slot, itemStats, makeItem, rollQ, setAlchemistCheck } from './items';
+import { BASES, Fam, UniqId, starterOf } from '../data/gear';
 import { MoveRule } from './rules';
 import { AbilityId, MatId, TraitId } from '../data/materials';
 import { Align, BranchId, CompanionId, JobId, PIECES, PROMO3, PieceId, jobDef } from '../data/pieces';
@@ -195,7 +196,9 @@ export const promo2Of = (g = G) => {
 
 /** 최대 체력. 붙어서 치면 피해 2배 규칙과 함께 모든 체력을 2배로 했다 (치고 빠지기만으로는 어렵게) */
 export const HP_MUL = 2;
-export const maxHp = (g = G) => HP_MUL * (PIECES[g.piece].hp + (g.promoted ? PIECES[g.piece].promo.hp : 0) + (g.promoted2 ? promo2Of(g).hp : 0) + (g.flags.promoted3 ? PROMO3.hp : 0) + g.bonusHp);
+export const maxHp = (g = G) => HP_MUL * (PIECES[g.piece].hp + (g.promoted ? PIECES[g.piece].promo.hp : 0) + (g.promoted2 ? promo2Of(g).hp : 0) + (g.flags.promoted3 ? PROMO3.hp : 0) + g.bonusHp + gearHp(g));
+/** 장착한 장비의 덤 효과 '최대 체력 +1' 합 */
+export const gearHp = (g = G) => SLOTS.reduce((s, sl) => { const it = equipped(sl, g); return s + (it && usable(it, g) ? itemStats(it).hp : 0); }, 0);
 
 export function baseRules(g = G): MoveRule[] {
   const p = PIECES[g.piece];
@@ -216,21 +219,31 @@ export interface Loadout {
   traits: Partial<Record<TraitId, number>>;
   abilities: { slot: Slot; id: AbilityId; lv: number }[];
   sets: SetId[];
+  /** 보스 고유 무기 효과 */
+  uniq: UniqId[];
+}
+
+/** 이 장비를 지금 직업으로 쓸 수 있는가 (무기는 계열이 맞아야 한다. 옛 장비·공용 부위는 누구나) */
+export function usable(it: Item, g = G): boolean {
+  const f = it.base ? BASES[it.base]?.fam : undefined;
+  return !f || f === align(g);
 }
 
 export function loadout(g = G): Loadout {
   const rules = baseRules(g);
   const traits: Partial<Record<TraitId, number>> = {};
   const abilities: Loadout['abilities'] = [];
+  const uniq: UniqId[] = [];
   const worn: Item[] = [];
   for (const slot of SLOTS) {
     const it = equipped(slot, g);
-    if (!it) continue;
+    if (!it || !usable(it, g)) continue;
     worn.push(it);
     const s = itemStats(it);
     rules.push(...s.rules);
     for (const [t, lv] of Object.entries(s.traits)) traits[t as TraitId] = Math.min(3, (traits[t as TraitId] ?? 0) + (lv ?? 0));
     if (s.ability) abilities.push({ slot, ...s.ability });
+    if (s.uniq) uniq.push(s.uniq);
   }
   // 세트 효과: 특성 상한(3)을 1 넘을 수 있다
   const sets = activeSets(worn);
@@ -245,7 +258,7 @@ export function loadout(g = G): Loadout {
     if (s === 'ghost') up('kibo');
     if (s === 'ink') { up('sharp'); up('kibo'); }
   }
-  return { rules, traits, abilities, sets };
+  return { rules, traits, abilities, sets, uniq };
 }
 
 export const equipped = (slot: Slot, g = G) => g.items.find((i) => i.id === g.equip[slot]) ?? null;
@@ -279,6 +292,27 @@ export function spendMats(m: Mats): boolean {
 export const align = (g = G): Align | null => jobDef(g.job)?.align ?? null;
 export const hasJob = (id: JobId, g = G) => g.job === id;
 export const tier = (g = G) => Math.min(3, Math.floor(g.progress / 3));
+setAlchemistCheck(() => !!G && G.job === 'alchemist');
+
+/** 새 장비를 가방(장비 목록)에 넣는다. 그 부위가 비어 있고 쓸 수 있으면 바로 장착 */
+export function addItem(baseId: string, q: number): Item {
+  const it = makeItem(G.nextId++, baseId, q);
+  G.items.push(it);
+  G.flags[`seen_${baseId}`] = true;
+  if (!G.equip[it.slot] && usable(it)) G.equip[it.slot] = it.id;
+  emit('gear', it);
+  return it;
+}
+
+/** 계열 시작 무기: 그 계열 무기를 하나도 안 가졌으면 준다 (직업을 정하거나 계열이 바뀔 때) */
+export function giveStarter(f: Fam): Item | null {
+  if (G.items.some((it) => it.base && BASES[it.base]?.fam === f)) return null;
+  const it = addItem(starterOf(f).id, rollQ(0, 0) % 50);
+  // 계열이 바뀌어 지금 무기를 못 쓰면 시작 무기로 갈아 낀다
+  const cur = equipped('weapon');
+  if (cur && !usable(cur)) G.equip.weapon = it.id;
+  return it;
+}
 
 // ---------- 로그 ----------
 const logLines: string[] = [];

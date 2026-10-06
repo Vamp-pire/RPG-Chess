@@ -24,8 +24,9 @@ export const PROMO3 = { name: '왕관 쓴 용사', rules: [{ kind: 'leap', dirs:
 export const PIECES: Record<PieceId, PieceDef> = {
   pawn: {
     id: 'pawn', name: '폰 (용사)', img: 'wp', hp: 7,
-    rules: [{ kind: 'step', dirs: KING, range: 1, mode: 'both' }],
-    desc: '킹처럼 8방향으로 1칸. 어느 쪽이든 붙은 적을 칠 수 있고, 쓰러질 피해를 한 번 버틴다 (용사의 의지 — 여관·모닥불에서 쉬면 다시 차오른다).',
+    // 체스 폰을 사방으로 돌린 모양: 곧게 걷고 대각선으로 친다 (장비 개편: 빛 계열 근접 무기가 겹치지 않게)
+    rules: [{ kind: 'step', dirs: ORTH, range: 1, mode: 'move' }, { kind: 'step', dirs: DIAG, range: 1, mode: 'attack' }],
+    desc: '상하좌우로 1칸 걷고, 대각선 1칸에 있는 적을 친다. 쓰러질 피해를 한 번 버틴다 (용사의 의지 — 여관·모닥불에서 쉬면 다시 차오른다). 무기로 칠 수 있는 칸을 늘리자.',
     promo: { name: '돌격 용사', rules: [{ kind: 'slide', dirs: ORTH, range: 2, mode: 'both' }], hp: 2, desc: '상하좌우 2칸 돌격이 추가된다.' },
     promo2: { name: '기보의 용사', rules: [{ kind: 'slide', dirs: DIAG, range: 2, mode: 'both' }], hp: 2, desc: '대각선 2칸 돌격이 추가된다.' },
     branches: {
@@ -103,8 +104,8 @@ export const JOBS: JobDef[] = [
   { id: 'necro', name: '사령술사', align: 'dark', desc: '쓰러뜨린 몹에게서 가끔 재료를 더 거둔다.' },
   { id: 'assassin', name: '암살자', align: 'dark', desc: '움직이지 않는 몹을 기습하면 그 적이 약해진 채 시작한다.' },
   { id: 'wanderer', name: '방랑자', align: 'neutral', desc: '탐험할 때 대각선 1칸 걸음도 쓸 수 있다.' },
-  { id: 'alchemist', name: '연금술사', align: 'neutral', desc: '조합 품질 +1.' },
-  { id: 'hunter', name: '사냥꾼', align: 'neutral', desc: '희귀 재료가 더 잘 나온다.' },
+  { id: 'alchemist', name: '연금술사', align: 'neutral', desc: '장비마다 개조 칸 +1.' },
+  { id: 'hunter', name: '사냥꾼', align: 'neutral', desc: '희귀 재료가 더 잘 나오고, 떨어지는 장비의 품질이 높다.' },
   { id: 'scholar', name: '학자', align: 'neutral', desc: '적의 정보를 읽고, 퍼즐·도감 보상이 늘어난다.' },
 ];
 

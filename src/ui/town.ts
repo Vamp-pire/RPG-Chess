@@ -3,15 +3,17 @@ import { sfx } from '../core/sfx';
 import { DAILY_MODS, dailyEnemyNames, todayDaily } from '../game/daily';
 import { AREAS } from '../data/areas';
 import { perk } from '../game/rewards';
-import { SLOTS, SLOT_INFO, itemStats } from '../core/items';
-import { G, addBag, emit, equipped, hasJob, matHave, maxHp, save, spendMats } from '../core/state';
+import { Q_TIERS, SLOTS, SLOT_INFO, itemStats } from '../core/items';
+import { BASES, FAM_NAME } from '../data/gear';
+import { PITY_FAM, PITY_Q, shopGear } from '../game/loot';
+import { G, addBag, addItem, align, emit, equipped, hasJob, matHave, maxHp, save, spendMats, usable } from '../core/state';
 import { MATS, MAT_ORDER, MatId } from '../data/materials';
 import { ALIGN_NAMES, Align, JOBS, JobId } from '../data/pieces';
 import { BOARD_REWARDS, QUESTS, progressText, q, qComplete, qStart } from '../game/quests';
 import { pieceSrc } from '../render/sprites';
 import { clearCoach, dialog, h, modal, toast } from './dom';
 import { DIFFS } from '../core/difficulty';
-import { invGrid, matIcon, statsView } from './forge';
+import { invGrid, itemHead, matIcon, statsView } from './forge';
 import { loreText } from './lore';
 import { eggShopBought } from '../game/eggs';
 
@@ -63,6 +65,16 @@ export function openShop(onChange: () => void, peddler = false) {
         const b = h('button', { class: 'btn small primary', disabled: sold || G.gold < d.price }, sold ? '샀음' : `${d.price}G`);
         b.addEventListener('click', () => { if (G.gold < d.price || G.flags[d.key]) return; G.gold -= d.price; G.flags[d.key] = true; addBag(d.id, 1); emit('buy'); sfx('coin'); save(); render(); });
         buy.append(h('div', { class: 'shop-row deal' }, matIcon(d.id, 24), h('span', {}, MATS[d.id].name), h('span', { class: 'muted' }, `보유 ${matHave(d.id)}`), b));
+      }
+    }
+    if (!peddler) {
+      buy.append(h('div', { class: 'sub deal-sub' }, '🛡️ 장비 (날마다 바뀜 · 평범한 품질)'));
+      for (const g of shopGear()) {
+        const sold = !!G.flags[g.key];
+        const b = h('button', { class: 'btn small', disabled: sold || G.gold < g.price }, sold ? '샀음' : `${g.price}G`);
+        b.addEventListener('click', () => { if (G.gold < g.price || G.flags[g.key]) return; G.gold -= g.price; G.flags[g.key] = true; const it = addItem(g.base.id, g.q); emit('buy'); sfx('coin'); save(); toast(`${itemStats(it).name}을(를) 샀다.${G.equip[it.slot] === it.id ? ' 바로 장착했어요.' : ''}`, 'good'); render(); });
+        const fam = g.base.fam ? ` · ${FAM_NAME[g.base.fam]}` : '';
+        buy.append(h('div', { class: 'shop-row deal' }, h('span', { class: 'gear-ico' }, '⚔'), h('span', {}, g.base.name), h('span', { class: 'muted' }, `${SLOT_INFO[g.base.slot].name}${fam}`), b));
       }
     }
     const sell = h('div', { class: 'shop-col' }, h('div', { class: 'sub' }, peddler ? '팔기 (마을보다 30% 쌈)' : `팔기${hasJob('contractor') ? ' (계약자 +25%)' : ''}`));
@@ -235,6 +247,7 @@ export function openInventory(onChange: () => void) {
   modal('장비', root, { wide: true, onClose: onChange });
   // 탭 둘: 장비 / 가방 (한 화면에 다 몰아넣지 않게)
   let tab: 'gear' | 'bag' = 'gear';
+  let filter: 'all' | (typeof SLOTS)[number] = 'all';
   const render = () => {
     root.innerHTML = '';
     const tabs = h('div', { class: 'tabs' });
@@ -250,12 +263,15 @@ export function openInventory(onChange: () => void) {
       root.append(h('div', { class: 'sub' }, `가방 ${bagItems.reduce((a, b) => a + b.n, 0)}개`), invGrid(bagItems, { desc: (id) => loreText(id) }));
       root.append(h('div', { class: 'sub' }, `여관 창고 ${storeItems.reduce((a, b) => a + b.n, 0)}개`), invGrid(storeItems, { desc: (id) => loreText(id) }));
       root.append(h('p', { class: 'hint' }, '쓰러지면 가방 재료 일부를 잃어요. 창고에 맡긴 재료는 안전해요.'));
+      // 드랍 천장: 구석에 작게
+      if (align()) root.append(h('p', { class: 'pity muted small', title: `내 계열 무기가 안 나온 전투 ${PITY_FAM}번이면 다음엔 꼭 나와요 · 훌륭한(80%) 이상이 안 나온 장비 ${PITY_Q}개면 다음은 꼭 훌륭한 이상` }, `천장 — 계열 무기 ${G.flags.pityFam ?? 0}/${PITY_FAM} · 훌륭한 장비 ${G.flags.pityQ ?? 0}/${PITY_Q}`));
       return;
     }
     const slots = h('div', { class: 'eq-slots' });
     for (const s of SLOTS) {
       const it = equipped(s);
-      slots.append(h('div', { class: `eq-slot ${it ? 'has' : ''}` }, h('small', {}, SLOT_INFO[s].name), h('b', {}, it ? itemStats(it).name : '—')));
+      const st = it ? itemStats(it) : null;
+      slots.append(h('div', { class: `eq-slot ${it ? 'has' : ''} ${it && !usable(it) ? 'off' : ''}` }, h('small', {}, SLOT_INFO[s].name), h('b', { style: st && !st.legacy ? { color: Q_TIERS[st.tier ?? 0].color } : {} }, st ? st.name : '—')));
     }
     root.append(slots);
     // 장비 프리셋: 지금 장착을 저장해 두고 한 번에 갈아 끼운다
@@ -282,24 +298,58 @@ export function openInventory(onChange: () => void) {
     const counts = setCounts(worn);
     const setRow = h('div', { class: 'chips set-row-chips' });
     for (const [s, n] of Object.entries(counts) as [SetId, number][]) setRow.append(h('span', { class: `chip set ${n >= SET_NEED ? 'on' : ''}`, title: SETS[s].desc }, `${SETS[s].name} ${Math.min(n, SET_NEED)}/${SET_NEED}${n >= SET_NEED ? ' ✓' : ''}`));
-    root.append(h('div', { class: 'sub' }, '세트 효과 (주 재료가 같은 계열인 장비 3개)'), setRow.children.length ? setRow : h('p', { class: 'muted small' }, '장착한 장비가 없다.'));
+    root.append(h('div', { class: 'sub' }, '세트 효과 (같은 세트 장비 3개)'), setRow.children.length ? setRow : h('p', { class: 'muted small' }, '장착한 장비가 없다.'));
     for (const [s, n] of Object.entries(counts) as [SetId, number][]) if (n >= SET_NEED) root.append(h('p', { class: 'small set-desc' }, `✓ ${SETS[s].name}: ${SETS[s].desc}`));
-    if (!G.items.length) root.append(h('p', { class: 'muted' }, '아직 장비가 없다. 마을 대장간에서 만들자.'));
+    if (!G.items.length) root.append(h('p', { class: 'muted' }, '아직 장비가 없다. 몹을 쓰러뜨리면 가끔 장비를 떨어뜨린다.'));
+    // 부위별로 걸러 보기 (장비가 쌓이면 길어진다)
+    const fl = h('div', { class: 'tabs small-tabs' });
+    for (const k of ['all', ...SLOTS] as const) {
+      const b = h('button', { class: `tab ${filter === k ? 'on' : ''}` }, k === 'all' ? '전부' : SLOT_INFO[k].name);
+      b.addEventListener('click', () => { filter = k; render(); });
+      fl.append(b);
+    }
+    if (G.items.length > 3) root.append(fl);
     const list = h('div', { class: 'inv-list' });
     const refund = DIFFS[G.diff].refund;
-    for (const it of G.items) {
+    const shown = G.items.filter((it) => filter === 'all' || it.slot === filter).sort((a, b) => Number(G.equip[b.slot] === b.id) - Number(G.equip[a.slot] === a.id));
+    for (const it of shown) {
       const s = itemStats(it);
       const on = G.equip[it.slot] === it.id;
-      const b = h('button', { class: `btn small ${on ? '' : 'primary'}` }, on ? '해제' : '장착');
+      const ok = usable(it);
+      const b = h('button', { class: `btn small ${on ? '' : 'primary'}`, disabled: !on && !ok, title: ok ? '' : `${FAM_NAME[s.fam!]} 계열 직업만 쓸 수 있어요` }, on ? '해제' : ok ? '장착' : '못 씀');
       b.addEventListener('click', () => { G.equip[it.slot] = on ? null : it.id; save(); render(); onChange(); });
-      const rf = refund > 0 ? h('button', { class: 'btn small ghost' }, '재련') : null;
-      rf?.addEventListener('click', () => reforge(it.id));
-      list.append(h('div', { class: `inv-item ${on ? 'on' : ''}` }, h('div', { class: 'row between' }, h('b', {}, s.name), h('span', { class: 'chip' }, SLOT_INFO[it.slot].name), rf, b), statsView(s)));
+      // 분해: 새 장비는 그 장비의 재료로, 옛 장비는 예전 재련 규칙으로
+      const canBreak = !on && (!s.legacy || refund > 0);
+      const rf = canBreak ? h('button', { class: 'btn small ghost' }, '분해') : null;
+      rf?.addEventListener('click', () => (s.legacy ? reforge(it.id) : breakDown(it.id)));
+      list.append(h('div', { class: `inv-item ${on ? 'on' : ''} ${ok ? '' : 'off'}` }, h('div', { class: 'row between' }, itemHead(s), h('span', { class: 'chip' }, SLOT_INFO[it.slot].name), rf, b), statsView(s)));
     }
     root.append(list);
-    if (G.items.length) root.append(h('p', { class: 'hint' }, refund > 0
-      ? `재련: 장비를 녹여 재료를 ${refund >= 1 ? '모두' : '절반'} 돌려받아요 (창고로 들어가요).`
-      : '어려움 난이도에서는 재련할 수 없어요.'));
+    if (G.items.length) root.append(h('p', { class: 'hint' }, '분해: 끼지 않은 장비를 녹여 그 장비의 재료를 돌려받아요 (창고로). 품질이 높을수록 많이 나와요.'));
+  };
+  /** 분해(새 장비): 그 장비의 재료를 1 + 품질 구간 + 강화 수만큼, 개조에 넣은 재료는 절반 */
+  const breakDown = (id: number) => {
+    const it = G.items.find((i) => i.id === id);
+    if (!it || !it.base) return;
+    const b = BASES[it.base];
+    const s = itemStats(it);
+    const back = new Map<MatId, number>();
+    back.set(b.mat, 1 + (s.tier ?? 0) + it.level);
+    (it.mods ?? []).forEach((md, i) => { if (i % 2 === 0) back.set(md.mat, (back.get(md.mat) ?? 0) + 1); });
+    const text = [...back].map(([m, n]) => `${MATS[m].name} ×${n}`).join(', ');
+    dialog('분해', `${s.name}을(를) 녹일까요? 돌려받는 재료: ${text}`, [
+      { label: '녹인다', onPick: () => {
+        for (const [m, n] of back) G.store[m] = (G.store[m] ?? 0) + n;
+        G.items = G.items.filter((i) => i.id !== id);
+        if (G.equip[it.slot] === id) G.equip[it.slot] = null;
+        emit('reforge');
+        save();
+        toast(`분해했다. ${text}`, 'good');
+        render();
+        onChange();
+      } },
+      { label: '그만둔다', onPick: () => {} },
+    ]);
   };
   /** 재련: 장비를 녹여 재료 일부를 창고로 돌려받는다 */
   const reforge = (id: number) => {

@@ -12,6 +12,7 @@ import { artUrl } from '../render/art';
 import { pieceSrc } from '../render/sprites';
 import { clearCoach, h, modal, patternGrid } from './dom';
 import { matIcon, statsView } from './forge';
+import { BASE_LIST, FAM_NAME } from '../data/gear';
 
 const MOB_ORDER: MobId[] = ['slime', 'rat', 'bat', 'golem', 'thorn', 'hound', 'strawking', 'toad', 'spider', 'skeleton', 'wraith', 'bonelord', 'misqueen', 'blunder'];
 
@@ -39,7 +40,7 @@ export function openCodex(tab: 'mob' | 'mat' | 'gear' | 'recipe' | 'replay' = 'm
   const render = () => {
     root.innerHTML = '';
     const tabs = h('div', { class: 'tabs' });
-    for (const [k, label] of [['mob', '몹'], ['mat', '재료'], ['gear', '장비 비교'], ['recipe', '레시피 노트'], ['replay', '보스전 기보']] as const) {
+    for (const [k, label] of [['mob', '몹'], ['mat', '재료'], ['gear', '장비 비교'], ['recipe', '장비 도감'], ['replay', '보스전 기보']] as const) {
       const b = h('button', { class: `tab ${cur === k ? 'on' : ''}` }, label);
       b.addEventListener('click', () => { cur = k; render(); });
       tabs.append(b);
@@ -225,7 +226,29 @@ function renderGear(root: HTMLElement, slot: Slot, pick: (s: Slot) => void) {
   root.append(list);
 }
 
+/** 장비 도감: 지역별 밑판. 손에 넣어 본 것만 이름이 보인다 */
 function renderRecipes(root: HTMLElement) {
+  const seen = (id: string) => !!G.flags[`seen_${id}`];
+  const n = BASE_LIST.filter((b) => !b.from.includes('ritual') && seen(b.id)).length;
+  root.append(h('p', { class: 'muted small' }, `손에 넣어 본 장비 ${n}/${BASE_LIST.filter((b) => !b.from.includes('ritual')).length}종. 몹마다 떨어뜨리는 장비가 정해져 있다.`));
+  for (const r of [1, 2, 3, 4]) {
+    const list = BASE_LIST.filter((b) => b.region === r && !b.from.includes('ritual'));
+    const box = h('div', { class: 'recipe-list' });
+    for (const b of list) {
+      const ok = seen(b.id);
+      const from = b.from.map((f) => (f === 'shop' ? '상점' : f === 'starter' ? '시작 무기' : f === 'boss' ? '보스 첫 처치' : MOBS[f as MobId]?.name ?? f)).filter((x, i, a) => a.indexOf(x) === i).join(' · ');
+      box.append(h('div', { class: `recipe ${ok ? '' : 'unseen'}` },
+        h('span', { class: 'chip' }, SLOT_INFO[b.slot].name),
+        b.fam ? h('span', { class: `chip fam-${b.fam}` }, FAM_NAME[b.fam]) : null,
+        h('b', {}, ok ? b.name : '???'),
+        h('span', { class: 'muted small' }, ok || b.from.includes('shop') || b.from.includes('starter') ? from : `${from.split(' · ')[0]}에게서`),
+        b.unique ? h('span', { class: 'chip uniq' }, '고유') : b.elite ? h('span', { class: 'chip' }, '엘리트') : null));
+    }
+    root.append(h('div', { class: 'sub' }, `${r}지역${list.some((b) => b.draft) ? ' (임시안)' : ''}`), box);
+  }
+}
+
+function renderOldRecipes(root: HTMLElement) {
   root.append(h('p', { class: 'muted small' }, '한 번 만든 조합이 기록된다. 재료는 대장간에서 직접 다시 넣어야 한다.'));
   if (!G.recipes.length) {
     root.append(h('p', { class: 'muted' }, '아직 기록된 조합이 없다.'));

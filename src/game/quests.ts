@@ -31,7 +31,7 @@ export const QUESTS: Record<string, QuestDef> = {
   sq_hermit: { name: '은자의 부탁', desc: '룩의 요새의 파수꾼들을 쓰러뜨리고 늙은 룩 은자에게 돌아가자.' },
   sq_wolves: { name: '늑대에 쫓기는 폰', desc: '얼어붙은 파일의 길 잃은 폰을 위해 설원 늑대 4마리를 쓰러뜨리자.', target: 4 },
   sq_puzzle3: { name: '얼음 속 돌판', desc: '빙하 협곡의 얼어붙은 돌판 퍼즐(한 수 메이트)을 풀자.' },
-  sq_smith: { name: '대장장이의 첫 제자', board: true, desc: '대장간에서 장비를 2번 만들자. 같은 부위를 다시 만들어도 된다.', target: 2 },
+  sq_smith: { name: '대장장이의 첫 제자', board: true, desc: '대장간에서 장비를 한 번 개조하자. 개조 칸에 재료를 넣으면 행마나 특성이 붙는다.', target: 1 },
   sq_dex: { name: '몹 도감 채우기', board: true, desc: '서로 다른 몹 5종을 쓰러뜨리자.', target: 5 },
   sq_merchant: { name: '떠돌이 나이트 상인', board: true, desc: '들판을 L자로 뛰어다니는 상인과 같은 칸에 도착하자.' },
   sq_dex2: { name: '늪의 도감', board: true, desc: '늪·성채의 몹 4종(두꺼비·거미·해골 기사·망령)을 쓰러뜨리자.', target: 4 },
@@ -107,13 +107,12 @@ export function progressText(id: string) {
 }
 
 const R2_DEX: MobId[] = ['toad', 'spider', 'skeleton', 'wraith'];
-/** 장비를 만든 횟수 (분해·판매해도 줄지 않는다). 옛 저장은 가진 장비 수에서 시작 */
-export const craftCount = () => Math.max(Number(G.flags.crafts ?? 0), G.items.length);
+/** 대장간에서 개조한 횟수 (옛 저장은 만든 횟수에서 이어서 센다) */
+export const craftCount = () => Number(G.flags.crafts ?? 0);
 
 export function initQuestHooks() {
   on('craft', () => {
-    // 새 장비는 이미 G.items에 들어 있다: 처음이면 가진 수, 아니면 +1
-    G.flags.crafts = G.flags.crafts === undefined ? G.items.length : Number(G.flags.crafts) + 1;
+    G.flags.crafts = Number(G.flags.crafts ?? 0) + 1;
     const s = q('sq_smith');
     if (s.st === 'active') {
       s.n = 1;
@@ -250,7 +249,7 @@ export function guideFor(id: string): GuideTarget | null {
     case 'sq_wolves': return st === 'ready' ? T('tundra', 'lostpawn', '길 잃은 폰에게 보고') : { area: 'tundra', text: '설원 늑대 사냥' };
     case 'sq_puzzle3': return T('glacier', 'puzzle3', '얼음 속 돌판');
     case 'sq_hermit': return G.flags.towers_done ? T('frostpost', 'hermit', '은자에게 보고') : { area: 'bastion', pos: [3, 3], text: '요새의 파수꾼' };
-    case 'sq_smith': return st === 'ready' ? T('town', 'board', '게시판에 보고') : T('town', 'forge', '대장간에서 장비 1개 만들기 (💡 추천 조합 → 넣기 → 제작)');
+    case 'sq_smith': return st === 'ready' ? T('town', 'board', '게시판에 보고') : T('town', 'forge', '대장간에서 장비 개조하기 (장비 → 재료 → 효과 고르기)');
     case 'sq_dex': case 'sq_dex2': return st === 'ready' ? T('town', 'board', '게시판에 보고') : null;
     case 'sq_merchant': return T('meadow', 'merchant', '나이트 상인 (L자로 움직인다)');
     case 'sq_sheep': {

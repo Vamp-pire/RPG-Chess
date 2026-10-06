@@ -1,6 +1,7 @@
 // 세트 효과: 장착한 장비들의 '주 재료'(가장 많이 넣은 재료)가 같은 계열이면 보너스
 import { Item, itemStats } from './items';
 import { MatId } from '../data/materials';
+import { BASES } from '../data/gear';
 
 export type SetId = 'slime' | 'fang' | 'wing' | 'stone' | 'thorn' | 'web' | 'bone' | 'ghost' | 'frost' | 'ink';
 
@@ -21,6 +22,8 @@ export const SETS: Record<SetId, { name: string; mats: MatId[]; desc: string }> 
 
 /** 장비의 주 재료가 속한 계열 (여러 계열이면 모두) */
 export function familiesOf(it: Item): SetId[] {
+  // 새 장비: 밑판에 적힌 세트
+  if (it.base) { const s = BASES[it.base]?.set; return s ? [s] : []; }
   const top = itemStats(it).shares[0]?.id;
   if (!top) return [];
   return (Object.keys(SETS) as SetId[]).filter((s) => SETS[s].mats.includes(top));
