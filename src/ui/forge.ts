@@ -1,4 +1,5 @@
 // 대장간: 조합 / 강화 (강조 등급 연출)
+import { termify } from './glossary';
 import { SETS, SET_NEED, familiesOf, setCounts } from '../core/sets';
 import { sfx } from '../core/sfx';
 import { perk } from '../game/rewards';
@@ -96,9 +97,9 @@ export function statsView(s: ItemStats, withGrid = true, img = pieceSrc(PIECES[G
   const box = h('div', { class: 'stats' });
   if (withGrid) box.append(patternGrid(baseRules(), s.rules, img));
   const ul = h('ul', { class: 'stat-list' });
-  for (const r of s.rules) ul.append(h('li', { class: `r-${r.mode}` }, describeRule(r)));
-  for (const [t, lv] of Object.entries(s.traits)) ul.append(h('li', { class: 'r-trait' }, `${TRAITS[t as keyof typeof TRAITS].name} Lv${lv} — ${TRAITS[t as keyof typeof TRAITS].desc(lv!)}`));
-  if (s.ability) ul.append(h('li', { class: 'r-ability' }, `능력 ${ABILITIES[s.ability.id].name} Lv${s.ability.lv} — ${ABILITIES[s.ability.id].desc(s.ability.lv)}`));
+  for (const r of s.rules) ul.append(h('li', { class: `r-${r.mode}` }, ...termify(describeRule(r))));
+  for (const [t, lv] of Object.entries(s.traits)) ul.append(h('li', { class: 'r-trait' }, ...termify(`${TRAITS[t as keyof typeof TRAITS].name} Lv${lv} — ${TRAITS[t as keyof typeof TRAITS].desc(lv!)}`)));
+  if (s.ability) ul.append(h('li', { class: 'r-ability' }, ...termify(`능력 ${ABILITIES[s.ability.id].name} Lv${s.ability.lv} — ${ABILITIES[s.ability.id].desc(s.ability.lv)}`)));
   if (!ul.children.length) ul.append(h('li', { class: 'muted' }, '효과 없음'));
   box.append(ul);
   return box;

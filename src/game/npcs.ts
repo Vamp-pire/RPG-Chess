@@ -28,29 +28,29 @@ export function talk(app: App, id: string) {
       G.flags.elderPoke = Number(G.flags.elderPoke ?? 0) + 1;
       if (G.flags.elderPoke === 10) {
         emit('elderPoke');
-        return say('촌장 킹', 'bk', '"자네! 이걸로 열 번째일세! 난 한 번에 한 칸밖에 못 움직인다고. 도망도 못 가!"', [{ label: '…죄송합니다', onPick: () => {} }]);
+        return say('촌장 킹', 'wk', '"자네! 이걸로 열 번째일세! 난 한 번에 한 칸밖에 못 움직인다고. 도망도 못 가!"', [{ label: '…죄송합니다', onPick: () => {} }]);
       }
       // 폰의 흔적 셋을 모은 뒤 (숨은 엔딩 「다음 보스」)
       if (elderConfessReady()) {
         G.flags.elder_confess = true;
-        void talkChain('촌장 킹', 'p:bk', ELDER_CONFESSION).then(() => app.refreshAll());
+        void talkChain('촌장 킹', 'p:wk', ELDER_CONFESSION).then(() => app.refreshAll());
         return;
       }
-      if (!G.job) return say('촌장 킹', 'bk', '"자넨… 기보에 없는 말이로군. 요즘 이 판이 이상하다네. 다음 수가 안 오고, 가장자리부터 칸이 하나씩 지워지고 있어. 이대로면 마을도 언젠간 사라지겠지. …우선 기록의 벽부터 가 보게. 자네가 뭘 할지 거기서 정해야 하네."', [bye]);
+      if (!G.job) return say('촌장 킹', 'wk', '"자넨… 기보에 없는 말이로군. 요즘 이 판이 이상하다네. 다음 수가 안 오고, 가장자리부터 칸이 하나씩 지워지고 있어. 이대로면 마을도 언젠간 사라지겠지. …우선 기록의 벽부터 가 보게. 자네가 뭘 할지 거기서 정해야 하네."', [bye]);
       if (qst('main_promo') === 'active' && matHave('crown') > 0) {
-        return say('촌장 킹', 'bk', '"밀짚 왕관 아닌가! 이걸 바치면 자네가 움직일 수 있는 틀이 넓어질 걸세. 승급하겠나?"', [
+        return say('촌장 킹', 'wk', '"밀짚 왕관 아닌가! 이걸 바치면 자네가 움직일 수 있는 틀이 넓어질 걸세. 승급하겠나?"', [
           { label: '승급한다', onPick: () => { if (spendMats({ crown: 1 })) app.promote(false); } },
           { label: '아직은', onPick: () => {} },
         ]);
       }
       if (qst('main_promo2') === 'active' && matHave('qcrown') > 0) {
-        return say('촌장 킹', 'bk', '"뒤집힌 왕관… 그 퀸 거로군. 이거면 한 번 더 넓힐 수 있겠어."', [
+        return say('촌장 킹', 'wk', '"뒤집힌 왕관… 그 퀸 거로군. 이거면 한 번 더 넓힐 수 있겠어."', [
           { label: '두 번째 승급을 한다', onPick: () => { if (spendMats({ qcrown: 1 })) app.promote(true); } },
           { label: '아직은', onPick: () => {} },
         ]);
       }
       if (qst('main_boss') !== 'active' && qst('main_boss') !== 'done') {
-        return say('촌장 킹', 'bk', '"들판 너머 언덕 위 옥좌에 밀짚으로 된 왕이 앉아 있네. 판 가장자리를 지우고 있는 게 그놈이야. 기보대로라면 아무도 못 막지. 하지만 기보에 없는 자네라면…" (서두를 필요는 없다. 대장간에서 장비를 갖추고 가자)', [
+        return say('촌장 킹', 'wk', '"들판 너머 언덕 위 옥좌에 밀짚으로 된 왕이 앉아 있네. 판 가장자리를 지우고 있는 게 그놈이야. 기보대로라면 아무도 못 막지. 하지만 기보에 없는 자네라면…" (서두를 필요는 없다. 대장간에서 장비를 갖추고 가자)', [
           { label: '맡겠습니다', onPick: () => {
             qStart('main_boss');
             // 첫 조합을 바로 해 볼 수 있게: 재료를 쥐여 주고 대장간부터 안내한다
@@ -65,9 +65,9 @@ export function talk(app: App, id: string) {
           { label: '나중에', onPick: () => {} },
         ]);
       }
-      if (G.promoted2) return say('촌장 킹', 'bk', '"벌써 기보 중반을 넘었구먼. 끝이 어떻게 될지는 나도 모르겠네. 자네가 정하겠지."', [bye]);
-      if (G.promoted) return say('촌장 킹', 'bk', '"마을 남쪽 담장 너머 길이 열렸네. 야영지의 정찰병 나이트를 찾아가 보게."', [bye]);
-      return say('촌장 킹', 'bk', '"옥좌는 언덕 동쪽 너머에 있네. 언덕은 들판 북쪽으로 나가면 나오고."', [bye]);
+      if (G.promoted2) return say('촌장 킹', 'wk', '"벌써 기보 중반을 넘었구먼. 끝이 어떻게 될지는 나도 모르겠네. 자네가 정하겠지."', [bye]);
+      if (G.promoted) return say('촌장 킹', 'wk', '"마을 남쪽 담장 너머 길이 열렸네. 야영지의 정찰병 나이트를 찾아가 보게."', [bye]);
+      return say('촌장 킹', 'wk', '"옥좌는 언덕 동쪽 너머에 있네. 언덕은 들판 북쪽으로 나가면 나오고."', [bye]);
     }
 
     case 'priest': {
@@ -75,33 +75,33 @@ export function talk(app: App, id: string) {
       const rc = qst('rc_priest');
       if (s === 'done' && G.flags.shrine === 'purify' && G.promoted && rc !== 'done') {
         if (rc === 'active') {
-          return say('사제 비숍', 'bb', '"준비됐어요? 늪에 있는 것들, 같이 상대해 봐요."', [
+          return say('사제 비숍', 'wb', '"준비됐어요? 늪에 있는 것들, 같이 상대해 봐요."', [
             { label: '시험 전투를 치른다', tag: 'fight', onPick: () => trial(app, 'priest') },
             { label: '나중에', onPick: () => {} },
           ]);
         }
-        return say('사제 비숍', 'bb', '"성소를 정화해 주셨죠. 저도 이제 대각선 말고 다른 길로 가 보고 싶어요. 같이 가도 될까요?"', [
+        return say('사제 비숍', 'wb', '"성소를 정화해 주셨죠. 저도 이제 대각선 말고 다른 길로 가 보고 싶어요. 같이 가도 될까요?"', [
           app.alignChoice('함께 순례를 떠나자', 'light', () => { qStart('rc_priest'); toast('사제와 함께 시험 전투를 치르면 동료가 된다.', 'info'); }),
           bye,
         ]);
       }
-      if (s === 'done') return say('사제 비숍', 'bb', '"성소 일은 다 끝났어요. 조심히 다니세요."', [bye]);
-      if (s === 'active') return say('사제 비숍', 'bb', '"성소는 숲 북서쪽 구석에 있어요. 숲은 마을 서쪽으로 나가면 돼요."', [bye]);
-      return say('사제 비숍', 'bb', '"숲에 제가 돌보던 성소가 있어요. 그런데 전 대각선으로만 다닐 수 있어서 나무 사이로는 못 가요. 대신 한번 들러 주실래요?"', [
+      if (s === 'done') return say('사제 비숍', 'wb', '"성소 일은 다 끝났어요. 조심히 다니세요."', [bye]);
+      if (s === 'active') return say('사제 비숍', 'wb', '"성소는 숲 북서쪽 구석에 있어요. 숲은 마을 서쪽으로 나가면 돼요."', [bye]);
+      return say('사제 비숍', 'wb', '"숲에 제가 돌보던 성소가 있어요. 그런데 전 대각선으로만 다닐 수 있어서 나무 사이로는 못 가요. 대신 한번 들러 주실래요?"', [
         { label: '가 보겠습니다', onPick: () => qStart('sq_shrine') }, bye,
       ]);
     }
 
     case 'shepherd': {
       const s = q('sq_sheep');
-      if (s.st === 'done') return say('양치기 폰', 'bp', '"양들이 전부 풀을 잘 뜯고 있어요."', [bye]);
+      if (s.st === 'done') return say('양치기 폰', 'wp', '"양들이 전부 풀을 잘 뜯고 있어요."', [bye]);
       if (s.st === 'locked' || s.st === 'avail') {
-        return say('양치기 폰', 'bp', '"양이 세 마리나 도망갔어요! 들판이나 숲, 언덕 어디쯤 있을 텐데… 전 앞으로 한 칸씩밖에 못 가서 찾으러 갈 수가 없어요."', [
+        return say('양치기 폰', 'wp', '"양이 세 마리나 도망갔어요! 들판이나 숲, 언덕 어디쯤 있을 텐데… 전 앞으로 한 칸씩밖에 못 가서 찾으러 갈 수가 없어요."', [
           { label: '찾아 드릴게요', onPick: () => { qStart('sq_sheep'); app.explore.enter(G.area); } }, bye,
         ]);
       }
-      if (s.st === 'active') return say('양치기 폰', 'bp', `"아직 ${3 - s.n}마리가 남았어요…"`, [bye]);
-      return say('양치기 폰', 'bp', '양 세 마리가 양치기 곁으로 돌아왔다. 양치기는 연신 고개를 숙인다. 그런데 문득, 이 양들을 노리는 상인의 이야기가 떠오른다.', [
+      if (s.st === 'active') return say('양치기 폰', 'wp', `"아직 ${3 - s.n}마리가 남았어요…"`, [bye]);
+      return say('양치기 폰', 'wp', '양 세 마리가 양치기 곁으로 돌아왔다. 양치기는 연신 고개를 숙인다. 그런데 문득, 이 양들을 노리는 상인의 이야기가 떠오른다.', [
         app.alignChoice('양치기에게 모두 돌려준다', 'light', (w) => qComplete('sq_sheep', { gold: w ? 8 : 15, mats: [['fiber', w ? 2 : 4]] })),
         app.alignChoice('몰래 한 마리를 팔아넘긴다', 'dark', (w) => qComplete('sq_sheep', { gold: w ? 22 : 45 })),
         neutralChoice('수고비로 양털을 조금 받는다', () => qComplete('sq_sheep', { gold: 10, mats: [['pearl', 1]] })),
@@ -113,12 +113,12 @@ export function talk(app: App, id: string) {
       const rc = qst('rc_soldier');
       if (s.st === 'done' && G.promoted && rc !== 'done') {
         if (rc === 'active') {
-          return say('폰 병사', 'bp', '"…준비됐어. 내 첫 수, 같이 두자."', [
+          return say('폰 병사', 'wp', '"…준비됐어. 내 첫 수, 같이 두자."', [
             { label: '시험 전투를 치른다', tag: 'fight', onPick: () => trial(app, 'soldier') },
             { label: '나중에', onPick: () => {} },
           ]);
         }
-        return say('폰 병사', 'bp', '폰 병사가 처음으로 먼저 말을 걸어 온다. "기보는… 더 이상 오지 않아. 나도 너처럼 움직이고 싶어."', [
+        return say('폰 병사', 'wp', '폰 병사가 처음으로 먼저 말을 걸어 온다. "기보는… 더 이상 오지 않아. 나도 너처럼 움직이고 싶어."', [
           app.alignChoice('손을 내민다: 함께 가자', 'light', () => startRc('rc_soldier'), '무료'),
           app.alignChoice('계약으로 묶는다 (쥐 이빨 3)', 'dark', () => { if (spendMats({ tooth: 3 })) startRc('rc_soldier'); else toast('쥐 이빨이 부족하다', 'bad'); }, matHave('tooth') < 3 ? '쥐 이빨 부족' : undefined),
           neutralChoice('첫 수를 가르쳐 준다 (들풀 섬유 3)', () => { if (spendMats({ fiber: 3 })) startRc('rc_soldier'); else toast('들풀 섬유가 부족하다', 'bad'); }),
@@ -130,15 +130,15 @@ export function talk(app: App, id: string) {
         '"…다음 수가… 오지 않아." 병사가 아주 작게 중얼거렸다.',
         '"너는… 기보에 없지? 그럼… 나도… 언젠가…" 병사의 눈에 처음으로 빛이 돈다.',
       ];
-      if (s.st === 'done') return say('폰 병사', 'bp', `"…언젠가 나도, 너처럼."${G.promoted ? '' : ' (승급하고 나서 다시 와 보자)'}`, [bye]);
+      if (s.st === 'done') return say('폰 병사', 'wp', `"…언젠가 나도, 너처럼."${G.promoted ? '' : ' (승급하고 나서 다시 와 보자)'}`, [bye]);
       if (s.st !== 'active') qStart('sq_pawn');
       const last = Number(G.flags.pawnTalkAt ?? -1);
-      if (last === G.battles && s.n > 0) return say('폰 병사', 'bp', '"……." (전투를 한 번 치르고 다시 말을 걸어 보자)', [bye]);
+      if (last === G.battles && s.n > 0) return say('폰 병사', 'wp', '"……." (전투를 한 번 치르고 다시 말을 걸어 보자)', [bye]);
       const line = lines[Math.min(s.n, 2)];
       s.n++;
       G.flags.pawnTalkAt = G.battles;
       if (s.n >= 3) qComplete('sq_pawn', { text: '폰 병사의 마음이 움직였다' });
-      return say('폰 병사', 'bp', line, [bye]);
+      return say('폰 병사', 'wp', line, [bye]);
     }
 
     case 'rook': {
@@ -217,14 +217,14 @@ export function talk(app: App, id: string) {
 
     case 'witch': {
       const s = qst('sq_witch');
-      if (s === 'done') return say('늪의 마녀', 'bq', G.flags.witch === 'stole' ? '"…도둑놈. 다음엔 솥에 넣어 버릴 테다."' : '"솥 잘 끓고 있다. 고마웠어, 굴러온 말아."', [bye]);
+      if (s === 'done') return say('늪의 마녀', 'wq', G.flags.witch === 'stole' ? '"…도둑놈. 다음엔 솥에 넣어 버릴 테다."' : '"솥 잘 끓고 있다. 고마웠어, 굴러온 말아."', [bye]);
       if (s === 'locked') {
-        return say('늪의 마녀', 'bq', '"퀸이라고 다 판 위에서 설치는 줄 알아? 난 솥이나 젓는다. 안개 거미줄 셋, 망령 정수 둘 가져와. 그럼 거울 조각을 주지. 순간이동할 때 쓰는 거야."', [
+        return say('늪의 마녀', 'wq', '"퀸이라고 다 판 위에서 설치는 줄 알아? 난 솥이나 젓는다. 안개 거미줄 셋, 망령 정수 둘 가져와. 그럼 거울 조각을 주지. 순간이동할 때 쓰는 거야."', [
           { label: '가져오겠다', onPick: () => { qStart('sq_witch'); if (matHave('silk') >= 3 && matHave('ecto') >= 2) q('sq_witch').st = 'ready'; } }, bye,
         ]);
       }
-      if (s === 'active') return say('늪의 마녀', 'bq', `"거미줄 ${Math.min(3, matHave('silk'))}/3, 정수 ${Math.min(2, matHave('ecto'))}/2. 늪엔 거미가, 성채엔 망령이 있지."`, [bye]);
-      return say('늪의 마녀', 'bq', '마녀가 솥을 젓는다. 재료는 다 모였다. 솥 옆에는 거울 파편이 여러 개 쌓여 있다.', [
+      if (s === 'active') return say('늪의 마녀', 'wq', `"거미줄 ${Math.min(3, matHave('silk'))}/3, 정수 ${Math.min(2, matHave('ecto'))}/2. 늪엔 거미가, 성채엔 망령이 있지."`, [bye]);
+      return say('늪의 마녀', 'wq', '마녀가 솥을 젓는다. 재료는 다 모였다. 솥 옆에는 거울 파편이 여러 개 쌓여 있다.', [
         app.alignChoice('재료를 그대로 건넨다', 'light', (w) => { if (spendMats({ silk: 3, ecto: 2 })) { G.flags.witch = 'honest'; } else return; qComplete('sq_witch', { gold: w ? 10 : 25, mats: [['mirror', 1]] }); }),
         app.alignChoice('마녀가 한눈판 사이 거울을 훔친다', 'dark', (w) => { G.flags.witch = 'stole'; qComplete('sq_witch', { mats: [['mirror', w ? 1 : 2]] }); }),
         neutralChoice('반만 주고 반은 거래한다', () => { if (spendMats({ silk: 2, ecto: 1 })) { G.flags.witch = 'trade'; } else return; qComplete('sq_witch', { mats: [['mirror', 1], ['skin', 2]] }); }),
@@ -237,23 +237,23 @@ export function talk(app: App, id: string) {
       const rc = qst('rc_ghost');
       if (s === 'done' && G.flags.ghost_bound && rc !== 'done') {
         if (rc === 'active') {
-          return say('망령 기사', 'bn', '"맹세를 증명하지. 칼을 들어라."', [
+          return say('망령 기사', 'wn', '"맹세를 증명하지. 칼을 들어라."', [
             { label: '시험 전투를 치른다', tag: 'fight', onPick: () => trial(app, 'ghostknight') },
             { label: '나중에', onPick: () => {} },
           ]);
         }
-        return say('망령 기사', 'bn', '"내 기록은 끝났다. 그래도 칼은 남았지. 네 수에 맹세하마."', [
+        return say('망령 기사', 'wn', '"내 기록은 끝났다. 그래도 칼은 남았지. 네 수에 맹세하마."', [
           { label: '맹세를 받는다', onPick: () => startRc('rc_ghost') }, bye,
         ]);
       }
-      if (s === 'done') return say('망령 기사', 'bn', '"…고맙다."', [bye]);
+      if (s === 'done') return say('망령 기사', 'wn', '"…고맙다."', [bye]);
       if (s === 'locked') {
-        return say('망령 기사', 'bn', '"이 성채는 뼈 군주한테 빼앗겼다. 내 몸이랑 기록까지 같이. 놈을 쓰러뜨려 다오. 그러면 나도… 좀 쉴 수 있겠지."', [
+        return say('망령 기사', 'wn', '"이 성채는 뼈 군주한테 빼앗겼다. 내 몸이랑 기록까지 같이. 놈을 쓰러뜨려 다오. 그러면 나도… 좀 쉴 수 있겠지."', [
           { label: '해 보겠다', onPick: () => qStart('sq_ghost') }, bye,
         ]);
       }
-      if (s === 'active') return say('망령 기사', 'bn', '"뼈 군주는 성채 위쪽이다. 반쯤 깎이면 부하를 부르니 조심해."', [bye]);
-      return say('망령 기사', 'bn', '"놈이 쓰러졌군. …그래서, 나는 어떻게 할 거지?"', [
+      if (s === 'active') return say('망령 기사', 'wn', '"뼈 군주는 성채 위쪽이다. 반쯤 깎이면 부하를 부르니 조심해."', [bye]);
+      return say('망령 기사', 'wn', '"놈이 쓰러졌군. …그래서, 나는 어떻게 할 거지?"', [
         app.alignChoice('안식을 빈다', 'light', (w) => { G.flags.ghost_rest = true; if (!w) G.bonusHp++; qComplete('sq_ghost', { gold: w ? 20 : 30, text: w ? '' : '최대 체력 +1' }); app.explore.removeObj('ghostknight'); }),
         app.alignChoice('영혼을 묶어 곁에 둔다', 'dark', (w) => { G.flags.ghost_bound = true; G.flags.ghost_how = 'bind'; qComplete('sq_ghost', { mats: w ? [['bone', 2]] : [['bone', 3], ['shard', 1]], text: '망령 기사를 동료로 들일 수 있다' }); }),
         neutralChoice('그의 이야기를 끝까지 기록한다', () => { G.flags.ghost_bound = true; G.flags.ghost_how = 'record'; qComplete('sq_ghost', { gold: 40, text: '망령 기사를 동료로 들일 수 있다' }); }),

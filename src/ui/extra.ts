@@ -1,4 +1,5 @@
-﻿import { G, exportCode, importCode } from '../core/state';
+﻿import { termify } from './glossary';
+import { G, exportCode, importCode } from '../core/state';
 import { AREAS, AreaId, ObjDef } from '../data/areas';
 import { exitOpen } from '../game/explore';
 import { h, modal } from './dom';
@@ -203,7 +204,7 @@ export function openMap(opts: MapOpts | { area: AreaId; text: string } | null) {
 }
 
 export function openHelp() {
-  const sec = (t: string, ...lines: string[]) => h('div', { class: 'help-sec' }, h('h3', {}, t), h('ul', {}, ...lines.map((l) => h('li', {}, l))));
+  const sec = (t: string, ...lines: string[]) => h('div', { class: 'help-sec' }, h('h3', {}, t), h('ul', {}, ...lines.map((l) => h('li', {}, ...termify(l)))));
   modal('도움말', h('div', { class: 'help' },
     sec('기본',
       '점 찍힌 칸은 갈 수 있는 곳이에요. 먼 칸을 누르면 알아서 걸어가요. 붉은 테두리가 쳐진 적은 지금 칠 수 있어요.',

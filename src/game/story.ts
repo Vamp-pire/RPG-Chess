@@ -220,7 +220,7 @@ export function chapterEnd(n: 1 | 2 | 3): Promise<void> {
 export const chapterNow = () => (G.flags.promoted3 ? 4 : G.promoted2 ? 3 : G.promoted ? 2 : 1);
 
 type Companion = 'soldier' | 'ghostknight' | 'priest';
-const COMP_NAME: Record<Companion, [string, string]> = { soldier: ['폰 병사', 'p:bp'], ghostknight: ['망령 기사', 'p:bn'], priest: ['사제 비숍', 'p:bb'] };
+const COMP_NAME: Record<Companion, [string, string]> = { soldier: ['폰 병사', 'p:wp'], ghostknight: ['망령 기사', 'p:wn'], priest: ['사제 비숍', 'p:wb'] };
 
 /** 동료가 장마다 한 번씩 꺼내는 속마음 [동료의 말, 주인공의 대답] */
 const COMP_TALK: Record<Companion, Partial<Record<2 | 3 | 4, Line[]>>> = {

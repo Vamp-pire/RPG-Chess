@@ -1,4 +1,5 @@
-﻿import { KING, ORTH, Vec, cheb, eq, key, manh, pick, shuffle, sign } from '../core/geom';
+﻿import { termify } from '../ui/glossary';
+import { KING, ORTH, Vec, cheb, eq, key, manh, pick, shuffle, sign } from '../core/geom';
 import { Grid, MoveRule, Targets, genTargets } from '../core/rules';
 import { G, HP_MUL, Loadout, emit, equipped, loadout, maxHp, tier } from '../core/state';
 import { ABILITIES } from '../data/materials';
@@ -223,6 +224,8 @@ export class Battle {
       ents: [],
       marks: [],
       arrows: [],
+      rangeAt: (x, y) => this.enemyRange(x, y),
+      pinned: null,
     };
     this.syncEnts();
     this.computeIntents();
@@ -493,8 +496,26 @@ export class Battle {
   }
 
   // ---------- 입력 ----------
+  /** 적의 행마 범위: 움직일 수 있는 칸, 칠 수 있는 칸 (빈칸도 칠 수 있는 곳으로 본다) */
+  private enemyRange(x: number, y: number) {
+    const u = this.unitAt(x, y);
+    if (!u || u.hp <= 0 || !u.mob) return null;
+    const g = this.gridFor(u);
+    const moves = genTargets(this.mobRules(u, 'move'), [u.x, u.y], g).moves.filter(([mx, my]) => this.floor(mx, my));
+    const ga: Grid = { ...g, occ: (ax, ay) => (this.unitAt(ax, ay) && !(ax === u.x && ay === u.y) && !this.allyAt(ax, ay) ? 'block' : this.floor(ax, ay) ? 'enemy' : null) };
+    const attacks = genTargets(this.mobRules(u, 'attack'), [u.x, u.y], ga).attacks;
+    return { moves, attacks };
+  }
+
   async click(x: number, y: number) {
     if (this.busy || this.over) return;
+    // 칠 수 없는 적을 누르면 그 적의 행마 범위를 띄워 두거나 접는다 (마우스가 없는 폰에서도 볼 수 있게)
+    const pinU = this.unitAt(x, y);
+    if (!this.mode && pinU?.mob && !this.targets.attacks.some((t) => eq(t, [x, y]))) {
+      const p = this.scene.pinned;
+      this.scene.pinned = p && p[0] === x && p[1] === y ? null : [x, y];
+      return;
+    }
     if (this.mode) {
       const m = this.mode;
       this.mode = null;
@@ -1866,7 +1887,7 @@ export class Battle {
 
   renderPanel(el: HTMLElement) {
     el.innerHTML = '';
-    if (this.bossNote) el.append(h('div', { class: 'card boss-note' }, h('div', { class: 'sub' }, '보스 규칙'), h('p', {}, this.bossNote)));
+    if (this.bossNote) el.append(h('div', { class: 'card boss-note' }, h('div', { class: 'sub' }, '보스 규칙'), h('p', {}, ...termify(this.bossNote))));
     const L = this.clockLimit;
     if (L && this.turn > L - 6) el.append(h('div', { class: 'card clock-note' }, this.turn <= L ? `⏳ 초읽기까지 ${L - this.turn + 1}턴 — 길어지면 가까운 적부터 조금씩 강해진다` : `⏳ 초읽기 ${this.clockFury}단계 — 4턴마다 가까운 적 하나의 공격 +1`));
     const scholar = G.job === 'scholar';
@@ -1877,14 +1898,14 @@ export class Battle {
         h('div', { class: 'row between' }, h('b', {}, `⚔ ${this.enc.name}`), h('span', { class: 'muted' }, `${this.turn}턴`)),
         h('div', { class: 'hpbar' }, h('i', { style: { width: `${(hr.hp / mh) * 100}%` } }), h('span', {}, `HP ${hr.hp} / ${mh}`)),
         h('div', { class: 'chips' },
-          this.sharp ? h('span', { class: 'chip' }, `날카로움 ${this.sharp}`) : null,
-          this.dodge ? h('span', { class: 'chip' }, `회피 ${this.dodge}`) : null,
-          this.sturdy ? h('span', { class: 'chip' }, `견고 ${this.sturdy}`) : null,
-          this.bind ? h('span', { class: 'chip' }, `속박 ${this.bind}`) : null,
-          this.undying ? h('span', { class: 'chip' }, '불굴') : null,
+          this.sharp ? h('span', { class: 'chip' }, ...termify(`날카로움 ${this.sharp}`)) : null,
+          this.dodge ? h('span', { class: 'chip' }, ...termify(`회피 ${this.dodge}`)) : null,
+          this.sturdy ? h('span', { class: 'chip' }, ...termify(`견고 ${this.sturdy}`)) : null,
+          this.bind ? h('span', { class: 'chip' }, ...termify(`속박 ${this.bind}`)) : null,
+          this.undying ? h('span', { class: 'chip' }, ...termify('불굴')) : null,
           this.hasGun ? h('span', { class: `chip ${this.gunReload ? 'warn' : 'gun'}` }, this.gunReload ? `총 재장전 ${this.gunReload}턴` : '총 장전됨') : null,
-          this.counter ? h('span', { class: 'chip' }, `반격 ${this.counter}`) : null,
-          G.piece === 'pawn' ? h('span', { class: `chip ${this.will ? 'off' : ''}`, title: this.will ? (DIFFS[G.diff].willEachBattle ? '이번 전투에서 이미 썼어요' : '여관이나 모닥불에서 쉬면 다시 차올라요') : '쓰러질 피해를 한 번 버텨요' }, this.will ? '용사의 의지 (소진)' : '용사의 의지') : null,
+          this.counter ? h('span', { class: 'chip' }, ...termify(`반격 ${this.counter}`)) : null,
+          G.piece === 'pawn' ? h('span', { class: `chip ${this.will ? 'off' : ''}`, title: this.will ? (DIFFS[G.diff].willEachBattle ? '이번 전투에서 이미 썼어요' : '여관이나 모닥불에서 쉬면 다시 차올라요') : '쓰러질 피해를 한 번 버텨요' }, ...termify(this.will ? '용사의 의지 (소진)' : '용사의 의지')) : null,
           hr.rooted ? h('span', { class: 'chip warn' }, '묶임: 이동 불가') : null,
         ),
       ),
@@ -1910,7 +1931,7 @@ export class Battle {
         h('span', { class: u.shiny ? 'shiny-name' : '' }, u.shiny ? `✨ 빛나는 ${d.name}` : d.name, this.shielded(u) ? ' 🛡' : '', u.revived ? ' (부활)' : ''),
         h('span', { class: 'muted' }, `HP ${u.hp}/${u.maxHp}`, this.synergy(u).bonus ? h('b', { class: 'syn' }, ` ${this.synergy(u).why} +1`) : ''),
         h('span', { class: `intent ${it?.t ?? ''}` }, u.retaliating ? `반격 태세 ${Math.round(DIFFS[G.diff].retaliate * 100)}%` : itxt),
-        h('div', { class: 'small muted w100' }, scholar ? `공격 ${u.atk} · ${d.desc}` : d.desc, u.shiny ? ' 8방향 1칸으로도 움직이고 공격한다.' : ''),
+        h('div', { class: 'small muted w100' }, ...termify(scholar ? `공격 ${u.atk} · ${d.desc}` : d.desc), u.shiny ? ' 8방향 1칸으로도 움직이고 공격한다.' : ''),
       ));
     }
     if (this.lines.length) list.append(h('p', { class: 'hint warn-text' }, '보라색 줄 = 다음 적 턴에 체크 라인이 2 피해를 준다 (적도 맞는다).'));

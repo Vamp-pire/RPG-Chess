@@ -41,6 +41,10 @@ export interface Scene {
   marks: Mark[];
   arrows: Arrow[];
   edges?: Edge[];
+  /** 이 칸에 있는 적의 행마 범위 (마우스를 올리거나 눌러 둔 적) */
+  rangeAt?: (x: number, y: number) => { moves: [number, number][]; attacks: [number, number][] } | null;
+  /** 폰에서 눌러 둔 적 칸 (마우스가 없을 때 범위를 띄워 둔다) */
+  pinned?: [number, number] | null;
 }
 
 export const mkEnt = (id: string, sprite: string, x: number, y: number, extra: Partial<Ent> = {}): Ent => ({
@@ -287,6 +291,25 @@ export class Renderer {
     ctx.globalAlpha = 1;
 
     if (prefs().ambient) this.drawAmbient(scene, t);
+
+    // 적 행마 범위: 마우스를 올린 적, 없으면 눌러 둔 적
+    const rc = this.hover && scene.rangeAt?.(this.hover[0], this.hover[1]) ? this.hover : scene.pinned ?? null;
+    const rng = rc ? scene.rangeAt?.(rc[0], rc[1]) : null;
+    if (rng) {
+      ctx.save();
+      for (const [x, y] of rng.attacks) {
+        ctx.strokeStyle = 'rgba(220,60,50,0.75)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.ox + x * ts + 4, this.oy + y * ts + 4, ts - 8, ts - 8);
+      }
+      ctx.fillStyle = 'rgba(200,50,40,0.6)';
+      for (const [x, y] of rng.moves) {
+        ctx.beginPath();
+        ctx.arc(this.ox + (x + 0.5) * ts, this.oy + (y + 0.5) * ts, ts * 0.09, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
 
     if (this.hover) {
       const [hx, hy] = this.hover;

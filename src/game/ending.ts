@@ -135,7 +135,7 @@ const stayTalk = () => talkChain('저자', 'm:author', [
 ]);
 const togetherTalk = () => {
   const [a] = (G.party as Comp[]).map((c) => COMP_SHORT[c]);
-  return talkChain(a ?? '동료', G.party[0] === 'soldier' ? 'p:bp' : G.party[0] === 'ghostknight' ? 'p:bn' : 'p:bb', [
+  return talkChain(a ?? '동료', G.party[0] === 'soldier' ? 'p:wp' : G.party[0] === 'ghostknight' ? 'p:wn' : 'p:wb', [
     ['"잠깐, 혼자 적으려고? 약속했잖아."', '맞다. 같이 적자.'],
   ]);
 };

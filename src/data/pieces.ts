@@ -64,19 +64,19 @@ export interface CompanionDef {
 
 export const COMPANIONS: Record<CompanionId, CompanionDef> = {
   soldier: {
-    id: 'soldier', name: '폰 병사', img: 'bp', hp: 6,
+    id: 'soldier', name: '폰 병사', img: 'wp', hp: 6,
     rules: [{ kind: 'step', dirs: ORTH, range: 1, mode: 'move' }, { kind: 'step', dirs: DIAG, range: 1, mode: 'attack' }, { kind: 'slide', dirs: ORTH, range: 2, mode: 'move' }],
     passive: '방진: 주인공과 붙어 있으면 둘 다 받는 피해 -1',
     desc: '기보를 기다리던 병사. 곧게 걷고 대각선으로 찌른다.',
   },
   ghostknight: {
-    id: 'ghostknight', name: '망령 기사', img: 'bn', hp: 5,
+    id: 'ghostknight', name: '망령 기사', img: 'wn', hp: 5,
     rules: [{ kind: 'leap', dirs: KNIGHT, range: 1, mode: 'both' }, { kind: 'slide', dirs: ORTH, range: 2, mode: 'both', pierce: true }],
     passive: '망령: 공격한 적이 살아남으면 다음 행동을 못 한다',
     desc: '무너진 성채를 지키던 기사의 영혼.',
   },
   priest: {
-    id: 'priest', name: '사제 비숍', img: 'bb', hp: 4,
+    id: 'priest', name: '사제 비숍', img: 'wb', hp: 4,
     rules: [{ kind: 'slide', dirs: DIAG, range: 3, mode: 'both' }],
     passive: '축복: 행동하는 대신 인접 아군을 2 회복할 수 있다',
     desc: '대각선의 가호를 지닌 사제.',

@@ -913,7 +913,7 @@ export class App {
         qComplete('sq_merchant', { mats: [['silver', 1]], text: '상점 할인 20%' });
         G.flags.discount = true;
         this.explore.removeObj(d.id);
-        dialog('떠돌이 나이트 상인', '"허허, 내 다음 착지를 읽다니! 약속대로 은빛 날개를 주지. 마을 상점에도 말해 두겠네."', [{ label: '고맙습니다', onPick: () => {} }], { sprite: 'p:bn', npc: 'merchant', speaker: '나이트 상인' });
+        dialog('떠돌이 나이트 상인', '"허허, 내 다음 착지를 읽다니! 약속대로 은빛 날개를 주지. 마을 상점에도 말해 두겠네."', [{ label: '고맙습니다', onPick: () => {} }], { sprite: 'p:wn', npc: 'merchant', speaker: '나이트 상인' });
         refresh();
         return;
       }
@@ -960,7 +960,7 @@ export class App {
         label: bs[b].name,
         note: bs[b].desc,
         onPick: () => { G.flags.branch = b; void this.promote(true); },
-      })), { sprite: 'p:bk', npc: 'elder', speaker: '촌장 킹', noClose: true }); // 왕관을 이미 바쳤으니 고르지 않고 닫을 수 없다
+      })), { sprite: 'p:wk', npc: 'elder', speaker: '촌장 킹', noClose: true }); // 왕관을 이미 바쳤으니 고르지 않고 닫을 수 없다
       return;
     }
     const pr = second ? promo2Of() : p.promo;
