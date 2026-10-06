@@ -129,6 +129,11 @@ export class App {
       return;
     }
     if (modalOpen() || this.mode === 'title') return;
+    // 메뉴 단축키 (탐험 중에만)
+    if (this.mode === 'explore' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const fn = this.menuKeys[e.key.toLowerCase()];
+      if (fn) { e.preventDefault(); fn(); return; }
+    }
     this.keyBuf = (this.keyBuf + e.key.toLowerCase()).slice(-2);
     if (this.keyBuf === 'e4' && !G.flags.e4) {
       G.flags.e4 = true;
@@ -1044,6 +1049,9 @@ export class App {
     return el;
   }
 
+  /** 옆 메뉴 단축키 → 여는 함수 */
+  menuKeys: Record<string, () => void> = {};
+
   renderSide() {
     setMood(this.musicMood());
     const bar = this.actBar();
@@ -1072,19 +1080,21 @@ export class App {
       h('div', { class: 'area-name' }, AREAS[G.area].name, runRule() ? h('span', { class: 'rule-chip', title: RUN_RULES[runRule()!].desc }, `🎴 ${RUN_RULES[runRule()!].name}`) : null),
       gt ? h('div', { class: 'guide-line' }, '🧭 ', gt) : h('div', { class: 'muted small' }, '판 가장자리 칸에서 바깥 화살표를 누르면 다른 지역으로 간다'),
     ));
-    // 메뉴: 흩어져 있던 버튼을 한곳에 (이모지 + 이름)
-    const menu = (icon: string, label: string, fn: () => void, title: string) => {
-      const b = h('button', { class: 'menu-btn', title }, h('span', { class: 'menu-ico' }, icon), h('span', {}, label));
+    // 메뉴: 아이콘만 (이모지와 글자를 한 상자에 같이 넣으면 둘 다 어중간하다는 베타 의견). 이름은 마우스를 올리면,
+    // 모서리의 글자는 단축키 (탐험 중 키보드로 바로 열기)
+    const menu = (icon: string, label: string, key: string, fn: () => void, desc: string) => {
+      const b = h('button', { class: 'menu-btn', title: `${label} (${key}) — ${desc}`, 'aria-label': label }, h('span', { class: 'menu-ico' }, icon), h('span', { class: 'menu-key' }, key));
       b.addEventListener('click', fn);
+      this.menuKeys[key.toLowerCase()] = fn;
       return b;
     };
     el.append(h('div', { class: 'side-menu' },
-      menu('🗺️', '지도', () => openMap({ target: this.guideTarget(), badge: (d) => this.npcBadge(d), travel: (a) => this.fastTravel(a), dest: (G.flags.dest as AreaId) || null, setDest: (a) => { G.flags.dest = a ?? ''; if (a) toast(`목적지: ${AREAS[a].name} — 금빛 화살표를 따라가세요`, 'info'); this.refreshAll(); } }), '지도 · 목적지 정하기 · 거점 이동'),
-      menu('🎒', '장비', () => openInventory(() => this.refreshAll()), '만든 장비 보기 · 바꿔 끼기 · 분해'),
-      menu('📖', '도감', () => openCodex(), '몹 · 재료 · 레시피'),
-      menu('🏆', '업적', () => openAchievements(), '업적과 보상'),
-      menu('❓', '도움말', () => openHelp(), '규칙과 조작'),
-      menu('⚙️', '설정', () => openSettings(() => this.refreshAll(), true), '안내 · 소리 · 음악 · 글자 크기 · 세이브 코드'),
+      menu('🗺️', '지도', 'M', () => openMap({ target: this.guideTarget(), badge: (d) => this.npcBadge(d), travel: (a) => this.fastTravel(a), dest: (G.flags.dest as AreaId) || null, setDest: (a) => { G.flags.dest = a ?? ''; if (a) toast(`목적지: ${AREAS[a].name} — 금빛 화살표를 따라가세요`, 'info'); this.refreshAll(); } }), '지도 · 목적지 정하기 · 거점 이동'),
+      menu('🛡️', '장비', 'I', () => openInventory(() => this.refreshAll()), '장비 바꿔 끼기 · 가방 재료 · 분해'),
+      menu('📖', '도감', 'C', () => openCodex(), '몹 · 재료 · 레시피'),
+      menu('🏆', '업적', 'A', () => openAchievements(), '업적과 보상'),
+      menu('❓', '도움말', 'H', () => openHelp(), '규칙과 조작'),
+      menu('⚙️', '설정', 'O', () => openSettings(() => this.refreshAll(), true), '안내 · 소리 · 음악 · 글자 크기 · 세이브 코드'),
     ));
     el.append(h('div', { class: 'card' },
       h('div', { class: 'row gap' }, h('img', { class: 'portrait', src: pieceSrc(p.img), alt: '' }), h('div', {},

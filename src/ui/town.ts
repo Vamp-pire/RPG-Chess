@@ -12,6 +12,7 @@ import { pieceSrc } from '../render/sprites';
 import { clearCoach, dialog, h, modal, toast } from './dom';
 import { DIFFS } from '../core/difficulty';
 import { invGrid, matIcon, statsView } from './forge';
+import { loreText } from './lore';
 import { eggShopBought } from '../game/eggs';
 
 const BASIC: MatId[] = ['gel', 'tooth', 'wing', 'moss', 'thorn', 'fiber'];
@@ -232,8 +233,25 @@ export function openInn(onChange: () => void, campfire = false) {
 export function openInventory(onChange: () => void) {
   const root = h('div', { class: 'inv' });
   modal('장비', root, { wide: true, onClose: onChange });
+  // 탭 둘: 장비 / 가방 (한 화면에 다 몰아넣지 않게)
+  let tab: 'gear' | 'bag' = 'gear';
   const render = () => {
     root.innerHTML = '';
+    const tabs = h('div', { class: 'tabs' });
+    for (const [id, name] of [['gear', '장비'], ['bag', '가방']] as const) {
+      const b = h('button', { class: `tab ${tab === id ? 'on' : ''}` }, name);
+      b.addEventListener('click', () => { tab = id; render(); });
+      tabs.append(b);
+    }
+    root.append(tabs);
+    if (tab === 'bag') {
+      const bagItems = MAT_ORDER.filter((id) => G.bag[id]).map((id) => ({ id, n: G.bag[id] ?? 0 }));
+      const storeItems = MAT_ORDER.filter((id) => G.store[id]).map((id) => ({ id, n: G.store[id] ?? 0 }));
+      root.append(h('div', { class: 'sub' }, `가방 ${bagItems.reduce((a, b) => a + b.n, 0)}개`), invGrid(bagItems, { desc: (id) => loreText(id) }));
+      root.append(h('div', { class: 'sub' }, `여관 창고 ${storeItems.reduce((a, b) => a + b.n, 0)}개`), invGrid(storeItems, { desc: (id) => loreText(id) }));
+      root.append(h('p', { class: 'hint' }, '쓰러지면 가방 재료 일부를 잃어요. 창고에 맡긴 재료는 안전해요.'));
+      return;
+    }
     const slots = h('div', { class: 'eq-slots' });
     for (const s of SLOTS) {
       const it = equipped(s);
