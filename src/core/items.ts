@@ -47,6 +47,8 @@ export interface Item {
   q?: number;
   mods?: Mod[];
   affix?: Affix[];
+  /** 얻고 아직 장비 창에서 못 본 장비 (NEW 표시) */
+  fresh?: boolean;
 }
 
 export interface ItemStats {

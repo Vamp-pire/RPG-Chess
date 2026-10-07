@@ -1,6 +1,8 @@
 ﻿import { termify } from './glossary';
 import { G, exportCode, importCode } from '../core/state';
-import { AREAS, AreaId, ObjDef } from '../data/areas';
+import { AREAS, AreaId, FIXED_ENCS, ObjDef } from '../data/areas';
+import { MobId } from '../data/mobs';
+import { basesFrom } from '../data/gear';
 import { exitOpen } from '../game/explore';
 import { h, modal } from './dom';
 import { sfx } from '../core/sfx';
@@ -168,6 +170,9 @@ export function openMap(opts: MapOpts | { area: AreaId; text: string } | null) {
         else if (bs.includes('!')) icons.push('❗');
         if (d.mobs.some((m) => BOSS_ENCS.includes(m.enc) && !(m.once && G.flags[m.once]) && !(m.req && !G.flags[m.req]))) icons.push('👑');
         if (d.mobs.some((m) => m.req && G.flags[m.req] && !(m.once && G.flags[m.once]))) icons.push('✦');
+        // 아직 못 본 장비를 떨어뜨리는 몹이 나오는 곳 (어디서 사냥할지 고르기 쉽게)
+        const mobsHere = new Set<MobId>([...d.mobs.filter((m) => !(m.once && G.flags[m.once])).flatMap((m) => FIXED_ENCS[m.enc]?.enemies.map((e) => e.m) ?? []), ...(d.random?.table.flatMap((t) => t.party.flat()) ?? [])]);
+        if ([...mobsHere].some((m) => basesFrom(m, d.region).some((b) => !G.flags[`seen_${b.id}`]))) icons.push('🎁');
       }
       const cell = h('div', { class: `map-cell r${d.region} ${here ? 'here' : ''} ${goal ? 'goal' : ''} ${s ? '' : 'unseen'} ${route.includes(id) && !here ? 'on-route' : ''}` },
         h('b', {}, s ? d.name : '???'),
@@ -196,7 +201,7 @@ export function openMap(opts: MapOpts | { area: AreaId; text: string } | null) {
     }
   }
   wrap.append(land, svg, grid);
-  const legend = h('p', { class: 'hint' }, '선 = 이어진 길(점선은 아직 막힘), 금색 = 안내 경로. 🔨 대장간 · 🛒 상점 · 🔥 쉼터 · ❗ 새 이야기 · ❓ 보고 · 👑 보스 · ✦ 각성 보스. 거점(마을·야영지·서리 초소·여백)에 있을 때는 가 본 다른 거점으로 바로 이동할 수 있다.');
+  const legend = h('p', { class: 'hint' }, '선 = 이어진 길(점선은 아직 막힘), 금색 = 안내 경로. 🔨 대장간 · 🛒 상점 · 🔥 쉼터 · ❗ 새 이야기 · ❓ 보고 · 👑 보스 · ✦ 각성 보스 · 🎁 아직 못 본 장비가 나오는 곳. 거점(마을·야영지·서리 초소·여백)에 있을 때는 가 본 다른 거점으로 바로 이동할 수 있다.');
   legend.append(' 가 본 지역을 누르면 그곳을 목적지로 정해, 판 위 화살표가 그쪽 길을 안내해요.');
   const extra = o.dest && o.setDest ? h('button', { class: 'btn small' }, '목적지 안내 끄기') : null;
   extra?.addEventListener('click', () => { md.close(); o.setDest!(null); });
@@ -284,6 +289,19 @@ export function openSettings(onChange: () => void, inGame = false) {
   };
   drawSizes();
   root.append(h('div', { class: 'set-row col' }, h('span', {}, h('b', {}, '글자 크기'), h('small', {}, '패널·창·대화·안내의 글자 크기. 게임 판은 그대로예요.')), sizeBox));
+  // 대화 자동 넘김 속도
+  const talks: [ReturnType<typeof prefs>['talk'], string][] = [['fast', '빠르게'], ['normal', '보통'], ['slow', '느리게'], ['manual', '누를 때만']];
+  const talkBox = h('div', { class: 'seg' });
+  const drawTalk = () => {
+    talkBox.innerHTML = '';
+    for (const [v, label] of talks) {
+      const b = h('button', { class: `seg-btn ${(prefs().talk ?? 'normal') === v ? 'on' : ''}` }, label);
+      b.addEventListener('click', () => { setPref('talk', v); drawTalk(); });
+      talkBox.append(b);
+    }
+  };
+  drawTalk();
+  root.append(h('div', { class: 'set-row col' }, h('span', {}, h('b', {}, '대화 넘김'), h('small', {}, '대사가 다음 줄로 저절로 넘어가는 속도. 상자를 누르거나 ▶·→ 키로 넘기고, ◀·← 키로 앞 줄을 다시 볼 수 있어요.')), talkBox));
   const fast = h('input', { type: 'checkbox', id: 'pref-speed' }) as HTMLInputElement;
   fast.checked = prefs().speed === 'fast';
   fast.addEventListener('change', () => { setPref('speed', fast.checked ? 'fast' : 'normal'); fx.speed = fast.checked ? 0.55 : 1; });

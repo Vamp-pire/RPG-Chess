@@ -913,3 +913,35 @@ button.qline.tracked { background: #2b2213; }
   .vn-char.left { left: auto; right: calc(50% + 370px); }
   .vn-char.right { right: auto; left: calc(50% + 370px); }
 }
+
+/* 행마 표시: 모양으로 종류를 (사용자 요청) — ● 움직이며 잡기, ○ 움직이기만, ✕ 잡을 때만. 색: 회색 = 기본 말, 초록·빨강·금색 = 장비 */
+.dot.move { background: transparent !important; box-shadow: none !important; border: 3px solid #3f9a4a; box-sizing: border-box; }
+.dot.base.move { border-color: rgba(40, 35, 30, .55); }
+.dot.attack { background: transparent !important; box-shadow: none !important; border-radius: 0; }
+.dot.attack::before, .dot.attack::after { content: ''; position: absolute; left: 50%; top: 50%; width: 120%; height: 3px; background: #d0402f; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg); }
+.dot.attack::after { transform: translate(-50%, -50%) rotate(-45deg); }
+.dot.base.attack::before, .dot.base.attack::after { background: rgba(40, 35, 30, .6); }
+.legend .dot { position: relative; left: auto; top: auto; transform: none; vertical-align: middle; margin: 0 2px; }
+/* 대화 이름표가 화면 아래에 잘리지 않게 조금 올린다 */
+@media (min-width: 1240px) { .vn-char { bottom: 3vh; } }
+
+/* ===== UX 개선 (2026-10-07) ===== */
+/* 대화: ◀ n/m ▶ */
+.vn-pager { display: inline-flex; align-items: center; gap: 6px; }
+.vn-nav { background: transparent; border: 1px solid var(--line); color: var(--gold); border-radius: 6px; padding: 0 7px; font-size: 11px; line-height: 18px; cursor: pointer; }
+.vn-nav:hover { background: #3a2f1c; }
+/* 장비 비교 ▲▼ · NEW */
+.chip.delta { font-weight: 700; white-space: nowrap; }
+.chip.delta.up { background: #1e3a22; color: #8fe0a0; }
+.chip.delta.down { background: #3a1e1c; color: #ff9a8a; }
+.chip.delta.same { background: #2a241c; color: var(--muted); }
+.chip.new-chip { background: #f0c95a; color: #241a08; font-weight: 800; }
+.inv-item.fresh { box-shadow: 0 0 0 1px rgba(240, 201, 90, .55) inset; }
+.spoil .chip.delta { font-size: 11px; }
+/* 메뉴 배지: 새 장비 수 */
+.menu-btn { position: relative; }
+.menu-badge { position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: #e05a3a; color: #fff; font-size: 11px; font-weight: 800; line-height: 17px; text-align: center; box-shadow: 0 0 0 2px var(--panel); }
+/* 개조 미리보기 */
+.preview-tag { color: #8fe0a0; margin-bottom: 4px; }
+/* 직업 선택: 계열 무기 한 줄 */
+.job-fam { margin: -2px 0 6px; color: var(--muted); }

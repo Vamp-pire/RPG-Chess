@@ -18,10 +18,12 @@ export interface Prefs {
   musicVol: number;
   /** 글자(화면 요소) 크기 배율: 게임 판은 그대로 */
   textScale: number;
+  /** 대화 자동 넘김 속도 (manual = 누를 때만) */
+  talk: 'fast' | 'normal' | 'slow' | 'manual';
 }
 
 const KEY = 'cf_prefs';
-const DEFAULTS: Prefs = { guide: true, tips: true, sound: true, volume: 0.5, speed: 'normal', skipAnim: false, ambient: true, textScale: 1, music: true, musicVol: 0.5 };
+const DEFAULTS: Prefs = { guide: true, tips: true, sound: true, volume: 0.5, speed: 'normal', skipAnim: false, ambient: true, textScale: 1, music: true, musicVol: 0.5, talk: 'normal' };
 let cache: Prefs | null = null;
 
 export function prefs(): Prefs {

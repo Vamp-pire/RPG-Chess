@@ -2,6 +2,7 @@
 import { MoveRule, previewPattern } from '../core/rules';
 import { fx } from '../render/fx';
 import { portraitUrl } from '../render/sprites';
+import { prefs } from '../core/prefs';
 
 type Child = Node | string | number | null | undefined | false;
 
@@ -113,21 +114,41 @@ export function dialog(title: string, text: string | HTMLElement, choices: Choic
   const parts = typeof text === 'string' ? splitLines(text) : [];
   let part = 0;
   let autoT = 0;
-  const pager = h('span', { class: 'vn-pager' });
+  // 쪽 표시: ◀ 앞 줄 다시 보기 · n/m · ▶ 다음 줄 (자동으로 넘어가 놓친 줄을 되돌려 볼 수 있게)
+  const prevB = h('button', { class: 'vn-nav', title: '앞 줄 다시 보기 (←)', 'aria-label': '앞 줄' }, '◀');
+  const pageT = h('span', {});
+  const nextB = h('button', { class: 'vn-nav', title: '다음 줄 (→)', 'aria-label': '다음 줄' }, '▶');
+  const pager = h('span', { class: 'vn-pager' }, prevB, pageT, nextB);
   if (parts.length > 1) box.append(pager);
   const showPart = () => {
     const last = part >= parts.length - 1;
     list.style.display = last ? '' : 'none';
-    pager.textContent = last ? '' : `${part + 1}/${parts.length} ▸`;
+    pageT.textContent = `${part + 1}/${parts.length}`;
+    prevB.style.visibility = part > 0 ? 'visible' : 'hidden';
+    nextB.style.visibility = last ? 'hidden' : 'visible';
     typewrite(txt as HTMLElement, parts[part]);
     clearTimeout(autoT);
-    if (!last) autoT = window.setTimeout(nextPart, readTime(parts[part]));
+    const wait = readTime(parts[part]);
+    if (!last && wait > 0) autoT = window.setTimeout(nextPart, wait);
   };
   const nextPart = () => {
     if (closed || part >= parts.length - 1) return;
     part++;
     showPart();
   };
+  const prevPart = () => {
+    if (closed || part <= 0) return;
+    part--;
+    showPart();
+  };
+  prevB.addEventListener('click', (e) => { e.stopPropagation(); prevPart(); });
+  nextB.addEventListener('click', (e) => { e.stopPropagation(); nextPart(); });
+  const navKey = (e: KeyboardEvent) => {
+    if (closed) { window.removeEventListener('keydown', navKey); return; }
+    if (e.key === 'ArrowLeft') prevPart();
+    if (e.key === 'ArrowRight') nextPart();
+  };
+  if (parts.length > 1) window.addEventListener('keydown', navKey);
   if (parts.length) showPart();
   // 아직 줄이 남았으면 상자를 누르면 바로 다음 줄
   box.addEventListener('click', () => { if (!saying && part < parts.length - 1) nextPart(); });
@@ -198,8 +219,9 @@ export function splitLines(text: string): string[] {
   });
   return quoted ? fixed.map((l) => (l.startsWith('"') ? l : `"${l}"`)) : fixed;
 }
-/** 한 줄 읽는 시간 (자동 넘김): 글자 수에 비례, 1.4~4초 */
-const readTime = (t: string) => Math.min(4000, Math.max(1400, 600 + t.length * 60));
+/** 한 줄 읽는 시간 (자동 넘김): 글자 수에 비례, 1.4~4초 × 설정 배율. '누를 때만'이면 0 (자동으로 안 넘긴다) */
+const TALK_MUL = { fast: 0.6, normal: 1, slow: 1.6, manual: 0 } as const;
+const readTime = (t: string) => Math.min(4000, Math.max(1400, 600 + t.length * 60)) * TALK_MUL[prefs().talk ?? 'normal'];
 
 function typewrite(el: HTMLElement, text: string) {
   let i = 0;

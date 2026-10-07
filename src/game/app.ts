@@ -24,7 +24,7 @@ import { fx } from '../render/fx';
 import { pieceSrc, portraitUrl } from '../render/sprites';
 import { Choice, clearCoach, coach, cutin, dialog, h, modal, modalOpen, patternGrid, setDialogHero, toast, helpFold } from '../ui/dom';
 import { openCodex } from '../ui/codex';
-import { matIcon, newSquares, openForge, invGrid } from '../ui/forge';
+import { deltaChip, matIcon, newSquares, openForge, invGrid } from '../ui/forge';
 import { openDifficulty, openHelp, openMap, openSettings } from '../ui/extra';
 import { prefs } from '../core/prefs';
 import { PUZZLES, openBoard, openInn, openInventory, openJobSelect, openPuzzle, openShop } from '../ui/town';
@@ -770,7 +770,7 @@ export class App {
       const t = Q_TIERS[s.tier ?? 0];
       const on = G.equip[it.slot] === it.id;
       const tag = !usable(it) ? `${FAM_NAME[s.fam!]} 계열 — 지금은 못 써요` : on ? '바로 장착!' : `${t.name} ${s.q}%`;
-      list.append(h('div', { class: `spoil gear ${(s.tier ?? 0) >= 2 ? 'rare' : ''}`, style: { animationDelay: `${i++ * 90}ms`, '--qc': t.color } }, h('span', { class: 'gear-ico' }, SLOT_ICON[it.slot]), h('b', { style: { color: t.color } }, s.name), h('span', { class: 'muted small' }, SLOT_INFO[it.slot].name), h('em', { class: 'spoil-tag' }, tag)));
+      list.append(h('div', { class: `spoil gear ${(s.tier ?? 0) >= 2 ? 'rare' : ''}`, style: { animationDelay: `${i++ * 90}ms`, '--qc': t.color } }, h('span', { class: 'gear-ico' }, SLOT_ICON[it.slot]), h('b', { style: { color: t.color } }, s.name), h('span', { class: 'muted small' }, SLOT_INFO[it.slot].name), deltaChip(it), h('em', { class: 'spoil-tag' }, tag)));
     }
     for (const [id, n] of drops) {
       const isRare = MATS[id].rare || MATS[id].key;
@@ -1117,9 +1117,13 @@ export class App {
       this.menuKeys[key.toLowerCase()] = fn;
       return b;
     };
+    // 장비 버튼: 아직 장비 창에서 못 본 새 장비 수를 모서리에
+    const gearBtn = menu('🎒', '장비', 'I', () => openInventory(() => this.refreshAll()), '장비 바꿔 끼기 · 가방 재료 · 분해');
+    const freshN = G.items.filter((it) => it.fresh).length;
+    if (freshN) gearBtn.append(h('span', { class: 'menu-badge', title: `새 장비 ${freshN}개` }, String(freshN)));
     el.append(h('div', { class: 'side-menu' },
       menu('🗺️', '지도', 'M', () => openMap({ target: this.guideTarget(), badge: (d) => this.npcBadge(d), travel: (a) => this.fastTravel(a), dest: (G.flags.dest as AreaId) || null, setDest: (a) => { G.flags.dest = a ?? ''; if (a) toast(`목적지: ${AREAS[a].name} — 금빛 화살표를 따라가세요`, 'info'); this.refreshAll(); } }), '지도 · 목적지 정하기 · 거점 이동'),
-      menu('🛡️', '장비', 'I', () => openInventory(() => this.refreshAll()), '장비 바꿔 끼기 · 가방 재료 · 분해'),
+      gearBtn,
       menu('📖', '도감', 'C', () => openCodex(), '몹 · 재료 · 장비'),
       menu('🏆', '업적', 'A', () => openAchievements(), '업적과 보상'),
       menu('❓', '도움말', 'H', () => openHelp(), '규칙과 조작'),
@@ -1140,7 +1144,8 @@ export class App {
       return h('div', {}, h('small', {}, SLOT_INFO[s].name), ' ', it ? itemStats(it).name : h('span', { class: 'muted' }, '—'),
         dud ? h('div', { class: 'dud' }, '기본 행마와 칸이 다 겹쳐서 새로 늘어난 칸이 없어요. 다른 재료로 다시 만들어 보세요.') : null);
     }))));
-    eq.append(h('p', { class: 'legend small' }, h('i', { class: 'dot base both' }), ' 기본 ', h('i', { class: 'dot new move' }), ' 이동 ', h('i', { class: 'dot new attack' }), ' 공격 ', h('i', { class: 'dot new both' }), ' 이동·공격'));
+    // 모양 = 행마 종류 (● 움직이며 잡기 · ○ 움직이기만 · ✕ 잡을 때만), 색 = 기본 말(회색) / 장비(색)
+    eq.append(h('p', { class: 'legend small' }, h('i', { class: 'dot new both' }), ' 이동·잡기 ', h('i', { class: 'dot new move' }), ' 이동만 ', h('i', { class: 'dot new attack' }), ' 잡을 때만 ', h('span', { class: 'muted' }, '(회색 = 기본, 색 = 장비)')));
     // 무기(공격 행마)는 전투에서만 — 탐험 이동이 안 바뀌어 '적용 안 됨'으로 오해하지 않게. 처음 몇 전투 동안만 펼쳐 둔다
     if (G.equip.weapon || G.equip.armor) {
       const fold = helpFold('gear', '장비는 언제 쓰이나요?', Number(G.flags.hintBattles ?? 0) <= 5, h('p', { class: 'hint small' }, '무기의 공격 행마와 방어구의 특성은 전투에서 쓰여요. 탐험 중 이동은 신발(이동 행마)만 바뀌어요.'));

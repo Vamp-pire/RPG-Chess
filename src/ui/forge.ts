@@ -4,7 +4,7 @@ import { sfx } from '../core/sfx';
 import { perk } from '../game/rewards';
 import { HAMMER_Q_MAX, ITEM_MAX_LEVEL, Item, ItemStats, ModEff, Q_TIERS, SLOTS, SLOT_INFO, affixLabel, arrowOf, itemStats, modLabel, modOptions, qTier, rollAffix } from '../core/items';
 import { MoveRule, describeRule, dirName, previewPattern } from '../core/rules';
-import { G, addItem, baseRules, emit, equipped, log, matHave, save, spendMats } from '../core/state';
+import { G, addItem, baseRules, emit, equipped, loadout, log, matHave, save, spendMats, usable } from '../core/state';
 import { ABILITIES, MATS, MAT_ORDER, MatId, TRAITS } from '../data/materials';
 import { BASES, FAM_NAME, FAM_STYLE, UNIQ } from '../data/gear';
 import { AREAS } from '../data/areas';
@@ -29,6 +29,43 @@ export function newSquares(base: MoveRule[], extra: MoveRule[]) {
   let n = 0;
   for (const k of expand([...base, ...extra])) if (!before.has(k)) n++;
   return n;
+}
+
+/**
+ * 지금 같은 부위에 낀 장비와 비교: 닿는 칸(이동·공격 따로 셈)이 몇 칸 늘고 줄며, 특성 합(덤 체력 포함)이 얼마나 바뀌나.
+ * 낀 장비 자신이거나 못 쓰는 장비면 null
+ */
+export function gearDelta(it: Item): { plus: number; minus: number; traits: number } | null {
+  if (!usable(it) || G.equip[it.slot] === it.id) return null;
+  const cur = equipped(it.slot);
+  const curS = cur && usable(cur) ? itemStats(cur) : null;
+  const s = itemStats(it);
+  const others = loadout().rules.filter((r) => !(curS?.rules ?? []).some((x) => JSON.stringify(x) === JSON.stringify(r)));
+  const cover = (rules: MoveRule[]) => {
+    const out = new Set<string>();
+    for (const [k, m] of previewPattern(rules, 3)) { if (m !== 'attack') out.add(`${k}|m`); if (m !== 'move') out.add(`${k}|a`); }
+    return out;
+  };
+  const before = cover([...others, ...(curS?.rules ?? [])]);
+  const after = cover([...others, ...s.rules]);
+  let plus = 0;
+  let minus = 0;
+  for (const k of after) if (!before.has(k)) plus++;
+  for (const k of before) if (!after.has(k)) minus++;
+  const sum = (x: ItemStats | null) => (x ? Object.values(x.traits).reduce((a, b) => a + (b ?? 0), 0) + x.hp + (x.ability?.lv ?? 0) + (x.uniq ? 1 : 0) : 0);
+  return { plus, minus, traits: sum(s) - sum(curS) };
+}
+
+/** 비교 꼬리표: ▲ 더 좋음 / ▼ 더 나쁨 / ＝ 비슷 (칸·특성 변화를 함께) */
+export function deltaChip(it: Item): HTMLElement | null {
+  const d = gearDelta(it);
+  if (!d) return null;
+  const score = d.plus - d.minus + d.traits * 2;
+  const parts: string[] = [];
+  if (d.plus || d.minus) parts.push(`칸 ${[d.plus ? `+${d.plus}` : '', d.minus ? `−${d.minus}` : ''].filter(Boolean).join(' ')}`);
+  if (d.traits) parts.push(`특성 ${d.traits > 0 ? '+' : '−'}${Math.abs(d.traits)}`);
+  const cls = score > 0 ? 'up' : score < 0 ? 'down' : 'same';
+  return h('span', { class: `chip delta ${cls}`, title: '지금 같은 부위에 낀 장비와 비교 (닿는 칸 · 특성 합)' }, `${score > 0 ? '▲' : score < 0 ? '▼' : '＝'} ${parts.join(' · ') || '비슷'}`);
 }
 
 export function matIcon(id: MatId, size = 28) {
@@ -159,13 +196,22 @@ export function openForge(onChange: () => void, opts: { craftOnly?: boolean } = 
       return;
     }
     const s = itemStats(it);
-    right.append(itemHead(s), statsView(s));
-    if (tab === 'mod') modPanel(it, s, right);
+    // 개조 미리보기: 효과에 마우스를 올리면 이 자리가 '넣은 뒤' 모습으로 바뀐다
+    const sv = h('div', { class: 'stats-holder' }, statsView(s));
+    right.append(itemHead(s), sv);
+    const preview = (e: ModEff | null, mat?: MatId) => {
+      sv.innerHTML = '';
+      if (!e || !mat) { sv.append(statsView(s)); return; }
+      const after = itemStats({ ...it, mods: [...(it.mods ?? []), { mat, e }] });
+      const gain = newSquares(s.rules, after.rules);
+      sv.append(h('div', { class: 'small preview-tag' }, `미리보기 — ${modLabel({ mat, e })}${gain ? ` · 새로 닿는 칸 +${gain}` : ''}`), statsView(after));
+    };
+    if (tab === 'mod') modPanel(it, s, right, preview);
     else enhancePanel(it, s, right);
   }
 
   /** 개조: 칸 보기 → 재료 고르기 → 효과 고르기 */
-  function modPanel(it: Item, s: ItemStats, right: HTMLElement) {
+  function modPanel(it: Item, s: ItemStats, right: HTMLElement, preview: (e: ModEff | null, mat?: MatId) => void) {
     const slots = h('div', { class: 'mod-slots' });
     for (let i = 0; i < s.slotsN; i++) {
       const md = s.mods[i];
@@ -212,6 +258,12 @@ export function openForge(onChange: () => void, opts: { craftOnly?: boolean } = 
         if (!o) { grid.append(h('span', { class: 'dir-off' })); continue; }
         const b = h('button', { class: `dir-btn ${o.ok ? '' : 'no'}`, disabled: !o.ok, title: o.ok ? `${o.label} (${arrowOf([x, y])})` : o.why ?? '' }, arrowOf([x, y]).replace('(L)', ''));
         b.addEventListener('click', () => apply(it, pickMat!, o.e));
+      const pm2 = pickMat!;
+      b.addEventListener('mouseenter', () => preview(o.e, pm2));
+      b.addEventListener('mouseleave', () => preview(null));
+        const pm = pickMat!;
+        b.addEventListener('mouseenter', () => preview(o.e, pm));
+        b.addEventListener('mouseleave', () => preview(null));
         grid.append(b);
       }
       const kind = MATS[pickMat].frag!.kind;

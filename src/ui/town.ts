@@ -3,8 +3,10 @@ import { sfx } from '../core/sfx';
 import { DAILY_MODS, dailyEnemyNames, todayDaily } from '../game/daily';
 import { AREAS } from '../data/areas';
 import { perk } from '../game/rewards';
-import { Q_TIERS, SLOTS, SLOT_INFO, itemStats } from '../core/items';
-import { BASES, FAM_NAME } from '../data/gear';
+import { Item, Q_TIERS, SLOTS, SLOT_INFO, itemStats } from '../core/items';
+import { BASES, FAM_NAME, FAM_STYLE } from '../data/gear';
+/** 직업 선택 화면: 계열 무기 한 줄 */
+const FAM_WEAPON: Record<string, string> = { light: '바로 옆을 세게 치는 철퇴·방패검', neutral: 'L자·뛰어넘기로 엉뚱한 칸을 치는 부메랑·채찍', dark: '멀리서 치는 활·새총' };
 import { PITY_FAM, PITY_Q, shopGear } from '../game/loot';
 import { G, addBag, addItem, align, emit, equipped, hasJob, matHave, maxHp, save, spendMats, usable } from '../core/state';
 import { MATS, MAT_ORDER, MatId } from '../data/materials';
@@ -13,7 +15,7 @@ import { BOARD_REWARDS, QUESTS, progressText, q, qComplete, qStart } from '../ga
 import { pieceSrc } from '../render/sprites';
 import { clearCoach, dialog, h, modal, toast } from './dom';
 import { DIFFS } from '../core/difficulty';
-import { invGrid, itemHead, matIcon, statsView } from './forge';
+import { deltaChip, invGrid, itemHead, matIcon, statsView } from './forge';
 import { loreText } from './lore';
 import { eggShopBought } from '../game/eggs';
 
@@ -244,7 +246,8 @@ export function openInn(onChange: () => void, campfire = false) {
 
 export function openInventory(onChange: () => void) {
   const root = h('div', { class: 'inv' });
-  modal('장비', root, { wide: true, onClose: onChange });
+  // 창을 닫으면 NEW 표시는 본 것으로 친다
+  modal('장비', root, { wide: true, onClose: () => { for (const it of G.items) delete it.fresh; save(); onChange(); } });
   // 탭 둘: 장비 / 가방 (한 화면에 다 몰아넣지 않게)
   let tab: 'gear' | 'bag' = 'gear';
   let filter: 'all' | (typeof SLOTS)[number] = 'all';
@@ -322,20 +325,50 @@ export function openInventory(onChange: () => void) {
       const canBreak = !on && (!s.legacy || refund > 0);
       const rf = canBreak ? h('button', { class: 'btn small ghost' }, '분해') : null;
       rf?.addEventListener('click', () => (s.legacy ? reforge(it.id) : breakDown(it.id)));
-      list.append(h('div', { class: `inv-item ${on ? 'on' : ''} ${ok ? '' : 'off'}` }, h('div', { class: 'row between' }, itemHead(s), h('span', { class: 'chip' }, SLOT_INFO[it.slot].name), rf, b), statsView(s)));
+      // 새로 얻은 장비 NEW, 지금 낀 것과 비교 ▲▼
+      const fresh = it.fresh ? h('span', { class: 'chip new-chip' }, 'NEW') : null;
+      list.append(h('div', { class: `inv-item ${on ? 'on' : ''} ${ok ? '' : 'off'} ${it.fresh ? 'fresh' : ''}` }, h('div', { class: 'row between' }, itemHead(s), fresh, deltaChip(it), h('span', { class: 'chip' }, SLOT_INFO[it.slot].name), rf, b), statsView(s)));
     }
     root.append(list);
-    if (G.items.length) root.append(h('p', { class: 'hint' }, '분해: 끼지 않은 장비를 녹여 그 장비의 재료를 돌려받아요 (창고로). 품질이 높을수록 많이 나와요.'));
+    // 한 번에 정리: 끼지 않은 평범한(품질 50% 미만) 새 장비 모두 분해 (고유·개조한 장비는 빼고)
+    const junk = G.items.filter((it) => it.base && G.equip[it.slot] !== it.id && (it.q ?? 0) < 50 && !BASES[it.base]?.unique && !(it.mods ?? []).length && !it.level);
+    if (junk.length) {
+      const all = h('button', { class: 'btn small ghost' }, `끼지 않은 평범한 장비 ${junk.length}개 모두 분해`);
+      all.addEventListener('click', () => {
+        const back = new Map<MatId, number>();
+        for (const it of junk) for (const [m, n] of breakBack(it)) back.set(m, (back.get(m) ?? 0) + n);
+        const text = [...back].map(([m, n]) => `${MATS[m].name} ×${n}`).join(', ');
+        dialog('한 번에 분해', `끼지 않은 평범한 장비 ${junk.length}개를 녹일까요? (고유·개조·강화한 장비는 빼요) 돌려받는 재료: ${text}`, [
+          { label: '모두 녹인다', onPick: () => {
+            for (const [m, n] of back) G.store[m] = (G.store[m] ?? 0) + n;
+            const ids = new Set(junk.map((x) => x.id));
+            G.items = G.items.filter((i) => !ids.has(i.id));
+            emit('reforge');
+            save();
+            toast(`${junk.length}개를 분해했다. ${text}`, 'good');
+            render();
+            onChange();
+          } },
+          { label: '그만둔다', onPick: () => {} },
+        ]);
+      });
+      root.append(h('div', { class: 'row gap' }, all));
+    }
+    if (G.items.length) root.append(h('p', { class: 'hint' }, '분해: 끼지 않은 장비를 녹여 그 장비의 재료를 돌려받아요 (창고로). 품질이 높을수록 많이 나와요. ▲▼는 지금 같은 부위에 낀 장비와 비교한 거예요.'));
   };
-  /** 분해(새 장비): 그 장비의 재료를 1 + 품질 구간 + 강화 수만큼, 개조에 넣은 재료는 절반 */
+  /** 분해로 돌려받는 재료: 그 장비의 재료를 1 + 품질 구간 + 강화 수만큼, 개조에 넣은 재료는 절반 */
+  const breakBack = (it: Item) => {
+    const s = itemStats(it);
+    const back = new Map<MatId, number>();
+    back.set(BASES[it.base!].mat, 1 + (s.tier ?? 0) + it.level);
+    (it.mods ?? []).forEach((md, i) => { if (i % 2 === 0) back.set(md.mat, (back.get(md.mat) ?? 0) + 1); });
+    return back;
+  };
   const breakDown = (id: number) => {
     const it = G.items.find((i) => i.id === id);
     if (!it || !it.base) return;
-    const b = BASES[it.base];
     const s = itemStats(it);
-    const back = new Map<MatId, number>();
-    back.set(b.mat, 1 + (s.tier ?? 0) + it.level);
-    (it.mods ?? []).forEach((md, i) => { if (i % 2 === 0) back.set(md.mat, (back.get(md.mat) ?? 0) + 1); });
+    const back = breakBack(it);
     const text = [...back].map(([m, n]) => `${MATS[m].name} ×${n}`).join(', ');
     dialog('분해', `${s.name}을(를) 녹일까요? 돌려받는 재료: ${text}`, [
       { label: '녹인다', onPick: () => {
@@ -384,7 +417,8 @@ export function openJobSelect(onPick: (j: JobId) => void) {
   root.append(h('p', {}, '벽에는 모든 말의 이름과 다음 수가 빼곡히 새겨져 있다. 그런데 내 이름만 없다. 빈자리에 무엇을 새길까?'));
   const cols = h('div', { class: 'job-cols' });
   for (const a of ['light', 'neutral', 'dark'] as Align[]) {
-    const col = h('div', { class: `job-col ${a}` }, h('h3', {}, ALIGN_NAMES[a]));
+    // 계열마다 쓸 수 있는 무기 성격 한 줄 (무기는 계열에 묶여 있다)
+    const col = h('div', { class: `job-col ${a}` }, h('h3', {}, ALIGN_NAMES[a]), h('p', { class: 'job-fam small' }, `무기: ${FAM_STYLE[a]} — ${FAM_WEAPON[a]}`));
     for (const j of JOBS.filter((x) => x.align === a)) {
       const b = h('button', { class: `job ${G.job === j.id ? 'on' : ''}` }, h('b', {}, j.name), h('small', {}, j.desc));
       b.addEventListener('click', () => { m.close(); onPick(j.id); });
@@ -392,7 +426,7 @@ export function openJobSelect(onPick: (j: JobId) => void) {
     }
     cols.append(col);
   }
-  root.append(cols, h('p', { class: 'hint' }, '직업은 전투보다 모험을 바꾼다: 대화·퀘스트 선택지, 상호작용, 보상. 중립 직업만 나중에 다시 고를 수 있다.'));
+  root.append(cols, h('p', { class: 'hint' }, '직업은 대화·퀘스트 선택지와 보상을 바꾸고, 계열(빛·중립·어둠)은 쓸 수 있는 무기를 정한다. 나중에 기록의 벽에서 다시 새길 수 있다 (계열까지 바꾸면 값이 비싸다).'));
 }
 
 /**

@@ -297,6 +297,7 @@ setAlchemistCheck(() => !!G && G.job === 'alchemist');
 /** 새 장비를 가방(장비 목록)에 넣는다. 그 부위가 비어 있고 쓸 수 있으면 바로 장착 */
 export function addItem(baseId: string, q: number): Item {
   const it = makeItem(G.nextId++, baseId, q);
+  it.fresh = true;
   G.items.push(it);
   G.flags[`seen_${baseId}`] = true;
   if (!G.equip[it.slot] && usable(it)) G.equip[it.slot] = it.id;
