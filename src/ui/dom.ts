@@ -169,7 +169,8 @@ export function splitLines(text: string): string[] {
   const quoted = /^"[^"]*"$/.test(text.trim());
   const body = quoted ? text.trim().slice(1, -1) : text;
   const out: string[] = [];
-  for (const para of body.split(/\n+/)) {
+  // 말 뒤에 붙은 괄호 덧말 "(…)"은 따로 한 줄로 (괄호 안은 통째로)
+  for (const para of body.replace(/(["”.?!…])\s+(?=[(（])/g, '$1\n').split(/\n+/)) {
     const raws = para.match(/[^.?!]+[.?!]+["”'…)）]*\s*|[^.?!]+$/g) ?? [para];
     // 괄호가 열린 채 끝난 문장은 닫힐 때까지 이어 붙인다 (따옴표는 아래에서 줄마다 닫아 준다)
     // (괄호 속 "(서두를 필요는 없다. …)"가 둘로 갈라져 어색했다 — 사용자 제보)
@@ -181,21 +182,19 @@ export function splitLines(text: string): string[] {
       if (paren <= 0) { sents.push(open); open = ''; }
     }
     if (open) sents.push(open);
-    let buf = '';
-    for (const raw of sents) {
-      const t = raw.trim();
-      if (!t) continue;
-      // 한 줄은 대략 80자까지: 짧은 문장은 이어 붙이고, 그보다 길 때만 문장 끝에서 끊는다 (너무 잘게 끊지 않게)
-      if (buf && (buf + ' ' + t).length <= 80) buf = `${buf} ${t}`;
-      else { if (buf) out.push(buf); buf = t; }
-    }
-    if (buf) out.push(buf);
+    // 한 줄에 한 문장 (사용자 결정)
+    for (const raw of sents) if (raw.trim()) out.push(raw.trim());
   }
+  // 따옴표가 여러 줄에 걸치면 줄마다 열고 닫아 준다 (가운데 줄도 따옴표 안의 말로 보이게)
+  let inQuote = false;
   const fixed = out.map((line) => {
-    // 따옴표가 줄 사이에 걸치면 그 줄 안에서 닫아 준다
     const n = (line.match(/"/g) ?? []).length;
-    if (n % 2 === 1) return line.startsWith('"') ? `${line}"` : `"${line}`;
-    return line;
+    const startIn = inQuote;
+    if (n % 2 === 1) inQuote = !inQuote;
+    let l = line;
+    if (startIn) l = `"${l}`;
+    if (inQuote) l = `${l}"`;
+    return l;
   });
   return quoted ? fixed.map((l) => (l.startsWith('"') ? l : `"${l}"`)) : fixed;
 }
