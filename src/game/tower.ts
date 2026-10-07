@@ -13,9 +13,9 @@ import type { App } from './app';
 /** 다섯 층씩 한 묶음: 어느 지역의 몹·판이 나오는가 (16층부터는 마지막 묶음이 계속) */
 const TIERS: { name: string; biomes: AreaId[]; mobs: MobId[]; elite: MobId }[] = [
   { name: '들판의 층', biomes: ['meadow', 'forest', 'hills'], mobs: ['slime', 'rat', 'bat', 'golem', 'thorn', 'hopper', 'mole', 'crow'], elite: 'hound' },
-  { name: '늪의 층', biomes: ['marsh', 'ruins'], mobs: ['toad', 'spider', 'skeleton', 'wraith', 'rat'], elite: 'bonelord' },
-  { name: '설원의 층', biomes: ['tundra', 'glacier', 'bastion'], mobs: ['wolf', 'icesprite', 'snowpawn', 'frostbishop', 'tower'], elite: 'giant' },
-  { name: '잉크의 층', biomes: ['margin', 'fold', 'inkwell'], mobs: ['inkblot', 'erased', 'bookworm', 'annot', 'inkdrop'], elite: 'double' },
+  { name: '늪의 층', biomes: ['marsh', 'ruins'], mobs: ['toad', 'spider', 'skeleton', 'wraith', 'rat', 'snake', 'turtle', 'statue'], elite: 'bonelord' },
+  { name: '설원의 층', biomes: ['tundra', 'glacier', 'bastion'], mobs: ['wolf', 'icesprite', 'snowpawn', 'frostbishop', 'tower', 'cannon', 'bear'], elite: 'giant' },
+  { name: '잉크의 층', biomes: ['margin', 'fold', 'inkwell'], mobs: ['inkblot', 'erased', 'bookworm', 'annot', 'inkdrop', 'smudge', 'number', 'brilliant'], elite: 'double' },
 ];
 const tierOf = (floor: number) => TIERS[Math.min(TIERS.length - 1, Math.floor((floor - 1) / 5))];
 

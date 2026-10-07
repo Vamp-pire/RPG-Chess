@@ -9,7 +9,8 @@ export type MatId =
   | 'skin' | 'silk' | 'bone' | 'ecto' | 'mirror' | 'blunder' | 'qcrown' | 'fogkey' | 'trigger'
   | 'fur' | 'frost' | 'ice' | 'tusk' | 'kcrown'
   | 'ink' | 'page' | 'quill' | 'lastword'
-  | 'leg' | 'claw' | 'feather';
+  | 'leg' | 'claw' | 'feather'
+  | 'scale' | 'shell' | 'rubble' | 'powder' | 'bearclaw' | 'rabbitfoot' | 'smear' | 'redink' | 'numeral';
 
 export interface MatDef {
   id: MatId;
@@ -65,12 +66,23 @@ export const MATS: Record<MatId, MatDef> = {
   leg: { id: 'leg', name: '메뚜기 다리', short: '다리', desc: '튕겨 오르는 힘이 남아 있다. 들판의 메뚜기는 앞에 놓인 말을 디딤돌 삼아 넘는다.', color: '#9cc25a', frag: { kind: 'hop', dirs: KING, range: 3 }, trait: 'light', price: 6 },
   claw: { id: 'claw', name: '두더지 발톱', short: '발톱', desc: '흙을 파던 두툼한 발톱. 두더지는 칸 밑으로 숨었다가 엉뚱한 칸에서 튀어나온다.', color: '#a88a6a', frag: { kind: 'step', dirs: ORTH, range: 1 }, trait: 'counter', price: 6 },
   feather: { id: 'feather', name: '까마귀 깃', short: '깃', desc: '검고 윤이 난다. 까마귀는 대각선으로 두 칸씩 뛰며 반짝이는 것을 물어 간다.', color: '#4a4a5e', frag: { kind: 'leap', dirs: ALFIL, range: 1 }, trait: 'light', price: 6 },
+  // ---- 2~4지역 새 몹 (장비 개편 2차) ----
+  scale: { id: 'scale', name: '뱀 비늘', short: '비늘', desc: '마디마다 L자로 꺾인다. 늪 뱀은 나이트의 길을 쉬지 않고 두 번 이어 달린다.', color: '#6a8a4a', frag: { kind: 'slide', dirs: KNIGHT, range: 2 }, trait: 'light', price: 9 },
+  shell: { id: 'shell', name: '등딱지 조각', short: '등딱지', desc: '곧게 날아오는 것은 비껴 낸다. 늪 거북은 대각선에서 오는 것에만 약하다.', color: '#7a8a5a', trait: 'sturdy', price: 9 },
+  rubble: { id: 'rubble', name: '석상 파편', short: '파편돌', desc: '오래 잠들어 있던 돌. 깨어난 석상은 곧은 길을 두 칸씩 건너뛴다.', color: '#9a9488', frag: { kind: 'leap', dirs: JUMP2, range: 1 }, trait: 'sturdy', price: 9 },
+  powder: { id: 'powder', name: '화약 눈', short: '화약', desc: '요새 포병이 쓰는 눈. 무언가를 사이에 두어야만 불이 붙는다 — 장기의 포처럼.', color: '#c8c0b0', frag: { kind: 'cannon', dirs: ORTH, range: 7 }, trait: 'sharp', price: 11 },
+  bearclaw: { id: 'bearclaw', name: '곰 발톱', short: '곰발톱', desc: '맞을수록 깊이 박힌다. 설원 곰은 상처가 날수록 사나워진다.', color: '#8a6a52', frag: { kind: 'step', dirs: KING, range: 1 }, trait: 'counter', price: 11 },
+  rabbitfoot: { id: 'rabbitfoot', name: '토끼 발', short: '토끼발', desc: '눈 위에 발자국 하나 남기지 않는다. 행운을 부른다는 소문이 있다.', color: '#f0ece4', rare: true, frag: { kind: 'leap', dirs: RING2, range: 1 }, trait: 'light', price: 40 },
+  smear: { id: 'smear', name: '번진 잉크', short: '번짐', desc: '마르기 전에 문질러졌다. 번진 기물은 나이트였다가 비숍이었다가 룩이 된다.', color: '#4a4a6a', frag: { kind: 'slide', dirs: DIAG, range: 2 }, trait: 'kibo', price: 14 },
+  redink: { id: 'redink', name: '붉은 잉크', short: '붉은잉크', desc: '「!!」를 적을 때만 쓰는 잉크. 판 위의 말을 엉뚱한 자리로 옮겨 놓는다.', color: '#c84a4a', frag: { kind: 'slide', dirs: KING, range: 2 }, trait: 'sharp', price: 15 },
+  numeral: { id: 'numeral', name: '번호 조각', short: '번호', desc: '수 번호의 숫자 하나. 앞의 수가 지워질 때마다 뒤의 번호가 커진다.', color: '#d8d0b8', frag: { kind: 'step', dirs: KING, range: 1 }, trait: 'undying', price: 14 },
   fogkey: { id: 'fogkey', name: '안개 열쇠', short: '열쇠', desc: '마을 북쪽의 안개가 떠오른다.', color: '#cfd6d6', key: true, price: 0 },
 };
 
 export const MAT_ORDER: MatId[] = [
   'gel', 'tooth', 'wing', 'moss', 'thorn', 'fiber', 'skin', 'silk', 'bone', 'ecto',
   'leg', 'claw', 'feather',
+  'scale', 'shell', 'rubble', 'powder', 'bearclaw', 'smear', 'redink', 'numeral', 'rabbitfoot',
   'fur', 'frost', 'ice', 'ink', 'page',
   'pearl', 'silver', 'crack', 'fang', 'shard', 'mirror', 'tusk', 'quill', 'blunder', 'trigger', 'crown', 'qcrown', 'kcrown', 'lastword', 'fogkey',
 ];

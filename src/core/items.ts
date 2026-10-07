@@ -273,7 +273,7 @@ function applyMod(m: Mod, slot: Slot, rules: MoveRule[], traits: Partial<Record<
     const same = modRules.find((r) => r.kind === d.frag!.kind && sameSet(r.dirs, [e.d]) && r.mode === mode);
     if (same && (same.kind === 'slide' || same.kind === 'hop')) { same.range = Math.min(7, same.range + 1); return; }
     const leg = mode === 'attack' && d.frag.kind === 'leap' && Math.abs(e.d[0]) + Math.abs(e.d[1]) === 3;
-    const r: MoveRule = { kind: d.frag.kind, dirs: [[e.d[0], e.d[1]]], range: d.frag.kind === 'slide' ? Math.min(2, d.frag.range) : d.frag.kind === 'hop' ? 3 : 1, mode, ...(leg ? { leg: true } : {}) };
+    const r: MoveRule = { kind: d.frag.kind, dirs: [[e.d[0], e.d[1]]], range: d.frag.kind === 'slide' ? Math.min(2, d.frag.range) : d.frag.kind === 'hop' ? 3 : d.frag.kind === 'cannon' ? 7 : 1, mode, ...(leg ? { leg: true } : {}) };
     modRules.push(r);
     rules.push(r);
   } else if (e.t === 'range') {

@@ -11,10 +11,10 @@ import { runEvent } from './events';
 import { kiboHere, kiboPlace, kiboTalk } from './kibo';
 import { DIFFS } from '../core/difficulty';
 import { loreText } from '../ui/lore';
-import { Item, Q_TIERS, SLOTS, SLOT_INFO, Slot, itemStats } from '../core/items';
-import { FAM_NAME } from '../data/gear';
+import { Item, Q_TIERS, SLOTS, SLOT_INFO, Slot, itemStats, rollQ } from '../core/items';
+import { FAM_NAME, basesFrom } from '../data/gear';
 import { rollGear } from './loot';
-import { G, HP_MUL, SLOTS_N, addBag, freshMats, align, giveStarter, usable, baseRules, curSlot, emit, equipped, getLog, hasJob, hasSave, load, log, loadout, matHave, maxHp, newGame, promo2Of, onLog, pieceTitle, save, setSlot, slotInfo, wipeSave, on } from '../core/state';
+import { G, HP_MUL, SLOTS_N, addBag, addItem, freshMats, align, giveStarter, usable, baseRules, curSlot, emit, equipped, getLog, hasJob, hasSave, load, log, loadout, matHave, maxHp, newGame, promo2Of, onLog, pieceTitle, save, setSlot, slotInfo, wipeSave, on } from '../core/state';
 import { AREAS, AreaId, EncDef, FIXED_ENCS, OPPOSITE, ObjDef, SIDE_NAME, Side, expandEnc, randomEnc, sideCells } from '../data/areas';
 import { ABILITIES, MATS, MAT_ORDER, MatId } from '../data/materials';
 import { MOBS, MobId } from '../data/mobs';
@@ -494,6 +494,21 @@ export class App {
 
   // ---------- 전투 ----------
   startBattle(m: RMob, ambush: boolean) {
+    // 눈토끼를 잡았다: 전투 없이 보상 (3지역 장비 하나, 훌륭한 품질 이상 + 토끼 발)
+    if (m.sprite === 'rabbit') {
+      this.explore.removeMob(m);
+      G.dex.rabbit = (G.dex.rabbit ?? 0) + 1;
+      addBag('rabbitfoot', 1);
+      const pool = basesFrom('rabbit', 3);
+      const it = addItem(pool[Math.floor(Math.random() * pool.length)].id, rollQ(0.5, 80));
+      emit('kill', 'rabbit');
+      sfx('win');
+      save();
+      this.showSpoils(new Map([['rabbitfoot', 1]]), 0, ['rabbitfoot'], '', undefined, [it]);
+      toast('눈토끼를 잡았다! 좀처럼 없는 일이다.', 'rare', 4000);
+      this.refreshAll();
+      return;
+    }
     if (m.fixed?.enc === 'author' && peaceOpen() && !G.flags.author_dead) {
       this.battleMob = m;
       const fight = () => { G.flags.talk_author = true; this.startEncounter(expandEnc(FIXED_ENCS.author, 4), { ambush }); };

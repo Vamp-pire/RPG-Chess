@@ -158,6 +158,29 @@ const LIST: BaseDef[] = [
   { id: 'r4_blinkmark', name: '책벌레 각인', slot: 'engrave', region: 4, from: ['bookworm'], rules: [], ability: { id: 'blink', lv: 2 }, mat: 'page', set: 'bone', draft: true },
   { id: 'r4_traprelic', name: '겹수의 유물', slot: 'relic', region: 4, from: ['double'], elite: true, rules: [], ability: { id: 'trap', lv: 3 }, mat: 'quill', set: 'ink', draft: true },
 
+  // ======================= 2~4지역 새 몹 장비 (2026-10-07) =======================
+  // 2지역: 늪 뱀 · 늪 거북 · 폐허 석상
+  { id: 'r2_snakeblade', name: '뱀 비늘 사슬낫', slot: 'weapon', fam: 'neutral', region: 2, from: ['snake'], rules: [A('slide', KNIGHT, 2)], traits: { light: 1 }, mat: 'scale', set: 'wing', draft: true },
+  { id: 'r2_snakeboots', name: '뱀 비늘 신', slot: 'boots', region: 2, from: ['snake'], rules: [M('slide', KNIGHT, 2)], mat: 'scale', set: 'wing', draft: true },
+  { id: 'r2_shellsword', name: '등딱지 방패검', slot: 'weapon', fam: 'light', region: 2, from: ['turtle'], rules: [A('step', KING)], traits: { sturdy: 2 }, mat: 'shell', set: 'stone', draft: true },
+  { id: 'r2_shellarmor', name: '등딱지 갑옷', slot: 'armor', region: 2, from: ['turtle'], rules: [], traits: { sturdy: 2, counter: 1 }, mat: 'shell', set: 'stone', draft: true },
+  { id: 'r2_sling3', name: '석상 투석기', slot: 'weapon', fam: 'dark', region: 2, from: ['statue'], rules: [A('leap', JUMP2), A('slide', DIAG, 2)], traits: { sharp: 1 }, mat: 'rubble', set: 'stone', draft: true },
+  { id: 'r2_statuerelic', name: '석상의 유물', slot: 'relic', region: 2, from: ['statue'], rules: [], ability: { id: 'terrain', lv: 2 }, mat: 'rubble', set: 'stone', draft: true },
+  // 3지역: 요새 포병 · 설원 곰 · 눈토끼(탐험판에서 잡으면)
+  { id: 'r3_cannon', name: '눈 대포', slot: 'weapon', fam: 'dark', region: 3, from: ['cannon'], rules: [A('cannon', ORTH, 7), A('slide', ORTH, 2)], traits: { sharp: 1 }, mat: 'powder', set: 'frost', draft: true },
+  { id: 'r3_powdermark', name: '화약 각인', slot: 'engrave', region: 3, from: ['cannon'], rules: [], ability: { id: 'pull', lv: 2 }, mat: 'powder', set: 'frost', draft: true },
+  { id: 'r3_bearclaw', name: '곰 발톱 장갑', slot: 'weapon', fam: 'light', region: 3, from: ['bear'], rules: [A('step', KING)], traits: { counter: 2, sharp: 1 }, mat: 'bearclaw', set: 'thorn', draft: true },
+  { id: 'r3_beararmor', name: '곰 가죽 갑옷', slot: 'armor', region: 3, from: ['bear'], rules: [], traits: { sturdy: 2, undying: 1 }, mat: 'bearclaw', set: 'bone', draft: true },
+  { id: 'r3_rabbitboom', name: '토끼 발 부메랑', slot: 'weapon', fam: 'neutral', region: 3, from: ['rabbit'], rules: [A('leap', JUMP2), A('leap', ALFIL), A('leap', KNIGHT)], traits: { light: 2 }, mat: 'rabbitfoot', set: 'wing', draft: true },
+  { id: 'r3_rabbitboots', name: '토끼 발 신', slot: 'boots', region: 3, from: ['rabbit'], rules: [M('leap', RING2)], traits: { light: 1 }, mat: 'rabbitfoot', set: 'wing', draft: true },
+  // 4지역: 번진 기물 · 묘수 기호 · 수 번호
+  { id: 'r4_smudgeboom', name: '번진 잉크 부메랑', slot: 'weapon', fam: 'neutral', region: 4, from: ['smudge'], rules: [A('leap', KNIGHT), A('slide', DIAG, 2)], traits: { kibo: 1 }, mat: 'smear', set: 'ink', draft: true },
+  { id: 'r4_smudgeboots', name: '번진 잉크 신', slot: 'boots', region: 4, from: ['smudge'], rules: [M('leap', KNIGHT), M('slide', DIAG, 2)], mat: 'smear', set: 'ink', draft: true },
+  { id: 'r4_redbow', name: '묘수의 활', slot: 'weapon', fam: 'dark', region: 4, from: ['brilliant'], rules: [A('slide', KING, 3)], traits: { sharp: 1, kibo: 1 }, mat: 'redink', set: 'ink', draft: true },
+  { id: 'r4_brilmark', name: '묘수 각인', slot: 'engrave', region: 4, from: ['brilliant'], rules: [], ability: { id: 'blink', lv: 3 }, mat: 'redink', set: 'ink', draft: true },
+  { id: 'r4_numblade', name: '번호 칼', slot: 'weapon', fam: 'light', region: 4, from: ['number'], rules: [A('step', KING)], traits: { sharp: 2, undying: 1, counter: 1 }, mat: 'numeral', set: 'bone', draft: true },
+  { id: 'r4_numarmor', name: '번호 갑옷', slot: 'armor', region: 4, from: ['number'], rules: [], traits: { sturdy: 2, undying: 1, sharp: 1 }, mat: 'numeral', set: 'bone', draft: true },
+
   // ======================= 숨은 무기 (의식으로만) =======================
   { id: 'gun', name: '기보 밖의 총', slot: 'weapon', region: 2, from: ['ritual'], rules: [{ kind: 'slide', dirs: KING, range: 4, mode: 'attack', gun: true }], mat: 'trigger' },
 ];

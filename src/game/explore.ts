@@ -32,6 +32,8 @@ export interface RMob {
   party?: MobId[];
   mover: Mover;
   ent: Ent;
+  /** 눈토끼: 굴로 사라지기까지 남은 걸음 */
+  life?: number;
 }
 
 export interface RObj {
@@ -111,6 +113,16 @@ export class Explore {
         const t = pick(a.random.table);
         const [x, y] = spots[i];
         this.mobs.push({ rid: `m${RID++}`, x, y, sprite: t.sprite, party: pickParty(t), mover: t.mover, ent: mkEnt(`r${RID}`, `m:${t.sprite}`, x, y, { bob: true }) });
+      }
+    }
+    // 눈토끼: 설원 탐험판에 아주 가끔 (잡기 아주 어렵다 — 사용자 결정)
+    if ((a.id === 'tundra' || a.id === 'glacier') && Math.random() < 0.12) {
+      const far: Vec[] = [];
+      for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if (!this.blockedTile(x, y) && !this.objAt(x, y) && !this.mobAt(x, y) && cheb([x, y], G.pos) >= 4) far.push([x, y]);
+      if (far.length) {
+        const [x, y] = pick(far);
+        this.mobs.push({ rid: `m${RID++}`, x, y, sprite: 'rabbit', mover: 'flee', life: 10, ent: mkEnt(`r${RID}`, 'm:rabbit', x, y, { bob: true, glow: 'rgba(255,255,255,0.5)' }) });
+        fx.text(x + 0.5, y, '눈토끼다!', '#ffffff', true);
       }
     }
     // 떠도는 사건 칸 (야생 지역에 가끔)
@@ -490,7 +502,26 @@ export class Explore {
     const anims: Promise<void>[] = [];
     let hit: RMob | null = null;
     const blocked = (x: number, y: number) => x < 0 || y < 0 || x > 7 || y > 7 || this.blockedTile(x, y) || !!this.objAt(x, y) || !!this.mobAt(x, y);
-    for (const m of this.mobs) {
+    for (const m of this.mobs.slice()) {
+      // 눈토끼: 늘 움직인다. 한두 칸 뛰어 주인공에게서 가장 먼 칸으로, 걸음이 다하면 굴로 사라진다
+      if (m.mover === 'flee') {
+        m.life = (m.life ?? 10) - 1;
+        if (m.life <= 0) {
+          fx.text(m.x + 0.5, m.y, '굴로 사라졌다', '#e8eef8');
+          this.mobs = this.mobs.filter((x) => x !== m);
+          continue;
+        }
+        const jumps: Vec[] = [...KING, [0, -2], [2, 0], [0, 2], [-2, 0], [2, -2], [2, 2], [-2, 2], [-2, -2]];
+        const opts = jumps.map(([dx, dy]) => [m.x + dx, m.y + dy] as Vec).filter(([x, y]) => !blocked(x, y) && !eq([x, y], P));
+        const far = (p: Vec) => cheb(p, P) * 10 + Math.abs(p[0] - P[0]) + Math.abs(p[1] - P[1]);
+        opts.sort((a, b) => far(b) - far(a));
+        if (opts.length && far(opts[0]) >= far([m.x, m.y])) {
+          m.x = opts[0][0];
+          m.y = opts[0][1];
+          anims.push(moveEnt(m.ent, opts[0]));
+        }
+        continue;
+      }
       let to: Vec | null = null;
       // 탐험 판의 몹은 아주 가끔만 움직인다 (판이 덜 어수선하게)
       if (Math.random() >= MOB_MOVE_CHANCE) continue;

@@ -488,6 +488,133 @@ function drawMob(ctx: CanvasRenderingContext2D, id: string, t: number, lw: numbe
       eyes(ctx, -9, 9, -8, 3.5);
       break;
     }
+    // ---- 2~4지역 새 몹: 캔바 그림이 없을 때 쓰는 간단한 도형 ----
+    case 'snake': {
+      ctx.beginPath();
+      ctx.moveTo(-34, 24);
+      ctx.bezierCurveTo(-20, -10, 0, 40, 14, 0);
+      ctx.bezierCurveTo(22, -20, 30, -24, 34, -26);
+      ctx.strokeStyle = '#6a8a4a';
+      ctx.lineWidth = 14;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      outline(ctx, 3);
+      eyes(ctx, 28, 38, -28, 3.5);
+      break;
+    }
+    case 'turtle': {
+      ctx.beginPath();
+      ctx.ellipse(0, 6, 34, 24, 0, Math.PI, 0);
+      ctx.lineTo(34, 14);
+      ctx.lineTo(-34, 14);
+      ctx.closePath();
+      ctx.fillStyle = '#7a8a5a';
+      ctx.fill();
+      outline(ctx, lw);
+      ctx.beginPath();
+      ctx.arc(40, 6, 10, 0, Math.PI * 2);
+      ctx.fillStyle = '#a8b880';
+      ctx.fill();
+      outline(ctx, 3);
+      eyes(ctx, 40, 46, 4, 3);
+      break;
+    }
+    case 'statue': {
+      ctx.beginPath();
+      ctx.roundRect(-22, -30, 44, 58, 6);
+      ctx.fillStyle = '#9a9488';
+      ctx.fill();
+      outline(ctx, lw);
+      ctx.beginPath();
+      ctx.moveTo(-10, -6); ctx.lineTo(-2, 0); ctx.lineTo(-8, 10);
+      outline(ctx, 2.5);
+      eyes(ctx, -8, 8, -16, 4, '#d8d0c0');
+      break;
+    }
+    case 'cannon': {
+      ctx.beginPath();
+      ctx.roundRect(-30, -10, 60, 20, 10);
+      ctx.fillStyle = '#5a5a62';
+      ctx.fill();
+      outline(ctx, lw);
+      for (const x of [-16, 16]) {
+        ctx.beginPath();
+        ctx.arc(x, 18, 10, 0, Math.PI * 2);
+        ctx.fillStyle = '#8a7a62';
+        ctx.fill();
+        outline(ctx, 3);
+      }
+      ctx.beginPath();
+      ctx.arc(-6, -24, 12, 0, Math.PI * 2);
+      ctx.fillStyle = PAPER;
+      ctx.fill();
+      outline(ctx, 3);
+      eyes(ctx, -10, -2, -26, 3);
+      break;
+    }
+    case 'bear': {
+      for (const x of [-20, 20]) {
+        ctx.beginPath();
+        ctx.arc(x, -24, 9, 0, Math.PI * 2);
+        ctx.fillStyle = '#8a6a52';
+        ctx.fill();
+        outline(ctx, 3);
+      }
+      ctx.beginPath();
+      ctx.ellipse(0, 4, 32, 28, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#8a6a52';
+      ctx.fill();
+      outline(ctx, lw);
+      ctx.beginPath();
+      ctx.ellipse(0, 12, 12, 9, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#d8c0a0';
+      ctx.fill();
+      eyes(ctx, -10, 10, -4, 4);
+      break;
+    }
+    case 'rabbit': {
+      for (const x of [-9, 9]) {
+        ctx.beginPath();
+        ctx.ellipse(x, -26, 6, 16, x / 40, 0, Math.PI * 2);
+        ctx.fillStyle = PAPER;
+        ctx.fill();
+        outline(ctx, 3);
+      }
+      ctx.beginPath();
+      ctx.ellipse(0, 8, 24, 20, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#f8f6f0';
+      ctx.fill();
+      outline(ctx, lw);
+      eyes(ctx, -8, 8, 2, 3.5);
+      break;
+    }
+    case 'smudge': {
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2 + wob * 0.1;
+        const r = 26 + ((i * 5) % 9);
+        ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      ctx.closePath();
+      ctx.fillStyle = '#4a4a6a';
+      ctx.fill();
+      outline(ctx, lw);
+      eyes(ctx, -8, 8, -2, 5);
+      break;
+    }
+    case 'brilliant':
+    case 'number': {
+      ctx.beginPath();
+      ctx.roundRect(-28, -28, 56, 56, 12);
+      ctx.fillStyle = id === 'brilliant' ? '#c84a4a' : '#d8d0b8';
+      ctx.fill();
+      outline(ctx, lw);
+      ctx.fillStyle = id === 'brilliant' ? PAPER : INK;
+      ctx.font = 'bold 30px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(id === 'brilliant' ? '!!' : '1.', 0, 11);
+      break;
+    }
     case 'crow': {
       // 까마귀: 검은 몸통, 노란 부리, 퍼덕이는 날개
       const f = Math.sin(t / 140) * 0.3;

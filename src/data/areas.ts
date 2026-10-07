@@ -27,7 +27,8 @@ export interface ObjDef {
   walk: boolean; // 밟아서 발동 / false면 인접 클릭
 }
 
-export type Mover = 'none' | 'wander' | 'chase';
+/** flee = 눈토끼: 한 걸음마다 가장 먼 칸으로 달아난다 (탐험판 보너스 몹) */
+export type Mover = 'none' | 'wander' | 'chase' | 'flee';
 
 export interface FixedMob {
   id: string;
@@ -224,6 +225,8 @@ export const AREAS: Record<AreaId, AreaDef> = {
         { sprite: 'toad', mover: 'wander', party: [['toad', 'toad', 'rat'], ['toad', 'spider', 'wraith']] },
         { sprite: 'spider', mover: 'chase', party: [['spider', 'rat', 'toad'], ['spider', 'wraith', 'toad']] },
         { sprite: 'wraith', mover: 'wander', party: [['wraith', 'toad', 'rat']] },
+        { sprite: 'snake', mover: 'chase', party: [['snake', 'toad'], ['snake', 'turtle', 'spider']] },
+        { sprite: 'turtle', mover: 'none', party: [['turtle', 'turtle', 'toad'], ['turtle', 'snake']] },
       ],
     },
   },
@@ -244,6 +247,7 @@ export const AREAS: Record<AreaId, AreaDef> = {
       table: [
         { sprite: 'skeleton', mover: 'wander', party: [['skeleton', 'skeleton'], ['skeleton', 'wraith']] },
         { sprite: 'wraith', mover: 'chase', party: [['wraith', 'wraith'], ['wraith', 'skeleton', 'spider']] },
+        { sprite: 'statue', mover: 'none', party: [['statue', 'skeleton'], ['statue', 'statue', 'wraith'], ['statue', 'turtle']] },
       ],
     },
   },
@@ -292,6 +296,7 @@ export const AREAS: Record<AreaId, AreaDef> = {
       table: [
         { sprite: 'wolf', mover: 'chase', party: [['wolf', 'wolf'], ['wolf', 'wolf', 'icesprite']] },
         { sprite: 'icesprite', mover: 'wander', party: [['icesprite', 'icesprite'], ['icesprite', 'wolf']] },
+        { sprite: 'bear', mover: 'wander', party: [['bear', 'wolf'], ['bear', 'icesprite', 'icesprite']] },
       ],
     },
   },
@@ -306,6 +311,7 @@ export const AREAS: Record<AreaId, AreaDef> = {
       table: [
         { sprite: 'frostbishop', mover: 'wander', party: [['frostbishop', 'icesprite'], ['frostbishop', 'snowpawn', 'snowpawn']] },
         { sprite: 'snowpawn', mover: 'none', party: [['snowpawn', 'snowpawn', 'snowpawn'], ['snowpawn', 'snowpawn', 'wolf']] },
+        { sprite: 'bear', mover: 'chase', party: [['bear', 'frostbishop'], ['bear', 'bear']] },
       ],
     },
   },
@@ -320,6 +326,7 @@ export const AREAS: Record<AreaId, AreaDef> = {
       table: [
         { sprite: 'tower', mover: 'none', party: [['tower', 'snowpawn', 'snowpawn'], ['tower', 'wolf']] },
         { sprite: 'wolf', mover: 'chase', party: [['wolf', 'wolf', 'wolf']] },
+        { sprite: 'cannon', mover: 'none', party: [['cannon', 'snowpawn', 'snowpawn'], ['cannon', 'wolf', 'bear'], ['cannon', 'cannon', 'snowpawn']] },
       ],
     },
   },
@@ -357,6 +364,8 @@ export const AREAS: Record<AreaId, AreaDef> = {
       table: [
         { sprite: 'inkblot', mover: 'wander', party: [['inkblot', 'inkblot'], ['inkblot', 'erased']] },
         { sprite: 'erased', mover: 'chase', party: [['erased', 'erased'], ['erased', 'annot']] },
+        { sprite: 'smudge', mover: 'wander', party: [['smudge', 'inkblot'], ['smudge', 'smudge', 'number']] },
+        { sprite: 'number', mover: 'chase', party: [['number', 'inkblot', 'inkblot'], ['number', 'erased', 'smudge']] },
       ],
     },
   },
@@ -372,6 +381,7 @@ export const AREAS: Record<AreaId, AreaDef> = {
       table: [
         { sprite: 'bookworm', mover: 'wander', party: [['bookworm', 'inkblot'], ['bookworm', 'bookworm']] },
         { sprite: 'annot', mover: 'chase', party: [['annot', 'annot'], ['annot', 'inkblot', 'inkblot']] },
+        { sprite: 'brilliant', mover: 'none', party: [['brilliant', 'bookworm', 'annot'], ['brilliant', 'number', 'smudge']] },
       ],
     },
   },

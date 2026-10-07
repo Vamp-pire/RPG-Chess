@@ -1,5 +1,5 @@
 ﻿import { termify } from '../ui/glossary';
-import { KING, ORTH, Vec, cheb, eq, key, manh, pick, shuffle, sign } from '../core/geom';
+import { DIAG, KING, KNIGHT, ORTH, Vec, cheb, eq, key, manh, pick, rand, shuffle, sign } from '../core/geom';
 import { Grid, MoveRule, Targets, genTargets } from '../core/rules';
 import { G, HP_MUL, Loadout, emit, equipped, loadout, maxHp, tier } from '../core/state';
 import { ABILITIES } from '../data/materials';
@@ -61,7 +61,25 @@ interface BUnit {
   loot?: number;
   /** 갈라지는 몹에서 떨어져 나온 작은 몸 (전리품 없음) */
   splitChild?: boolean;
+  /** 폐허 석상: 깨어났나 */
+  awake?: boolean;
+  /** 설원 곰: 분노로 오른 공격 */
+  rage?: number;
+  /** 번진 기물: 지금 모양 (0 나이트 · 1 비숍 · 2 룩) */
+  form?: number;
+  /** 묘수 기호: 다음 적 턴에 옮길 몹과 자리 / 다시 쓰기까지 남은 턴 */
+  plan?: { uid: number; spot: Vec };
+  warpCd?: number;
+  /** 수 번호: 지금 번호 (1~3) */
+  count?: number;
 }
+
+/** 번진 기물의 세 모양 */
+const SMUDGE_FORMS: { name: string; glyph: string; rule: MoveRule }[] = [
+  { name: '나이트', glyph: '♞', rule: { kind: 'leap', dirs: KNIGHT, range: 1, mode: 'both' } },
+  { name: '비숍', glyph: '♝', rule: { kind: 'slide', dirs: DIAG, range: 3, mode: 'both' } },
+  { name: '룩', glyph: '♜', rule: { kind: 'slide', dirs: ORTH, range: 3, mode: 'both' } },
+];
 
 /** 변이 접두어 (디스코드 의견: 같은 몹인데 재빠름·따라붙음이 들쭉날쭉 → 숨은 성질을 이름으로 드러낸다) */
 export type PreId = 'swift' | 'chase' | 'tough' | 'split';
@@ -90,7 +108,7 @@ const ELITE = new Set<MobId>(['hound', 'bonelord', 'rook', 'blunder']);
 const SPEED: Partial<Record<MobId, number>> = {
   rat: 2, bat: 2, hound: 2, wolf: 2, spider: 2, inkblot: 2, erased: 2, wraith: 2, icesprite: 2,
   slime: 0, slimelet: 0, golem: 0, thorn: 0, giant: 0, bookworm: 0, tower: 0, strawpawn: 0, snowpawn: 0, mole: 0,
-  crow: 2,
+  crow: 2, snake: 2, turtle: 0, statue: 0, cannon: 0, bear: 1, smudge: 1, number: 1, brilliant: 0,
 };
 
 export class Battle {
@@ -370,7 +388,7 @@ export class Battle {
   }
 
   private mobRules(u: BUnit, k: 'move' | 'attack'): MoveRule[] {
-    const base = MOBS[u.mob!][k];
+    const base = u.mob === 'smudge' ? [SMUDGE_FORMS[u.form ?? 0].rule] : MOBS[u.mob!][k];
     return u.shiny ? [...base, { kind: 'step', dirs: KING, range: 1, mode: 'both' }] : base;
   }
 
@@ -791,7 +809,7 @@ export class Battle {
     if (this.isShot(a, u)) {
       let shotDead = false;
       const shotDmg = 3 + (perk('shot') ? 1 : 0);
-      await this.shootFx(a, u, () => { shotDead = this.dmgEnemy(u, shotDmg, 1); }); // 사격은 멀리서 치는 것이라 1배
+      await this.shootFx(a, u, () => { shotDead = this.dmgEnemy(u, this.shellCut(a, u, shotDmg), 1); }); // 사격은 멀리서 치는 것이라 1배
       this.gunReload = 3; // 이번 턴 끝에 1 줄어, 다음 두 턴 동안 못 쏜다
       if (shotDead) await this.kill(u, false, 'shot');
       else if (stance) await this.retaliate(u, a);
@@ -825,7 +843,7 @@ export class Battle {
     // 붙어서 치면 2배, 떨어져서(미끄러져 오거나 L자로 뛰어) 치면 1배
     const melee = cheb([a.x, a.y], [u.x, u.y]) <= 1;
     if (!melee) fx.text(u.x + 0.5, u.y - 0.45, '먼 공격', '#cfd8e8');
-    await lunge(a.ent, [u.x, u.y], () => { sfx('hit'); dead = this.dmgEnemy(u, dmg, melee ? 2 : 1, melee); });
+    await lunge(a.ent, [u.x, u.y], () => { sfx('hit'); dead = this.dmgEnemy(u, this.shellCut(a, u, dmg * (melee ? 2 : 1)), 1, melee); });
     if (dead) {
       const to: Vec = [u.x, u.y];
       // 폰이 잡는 방식(바로 아래 대각선 칸에서의 일격, 주인공·동료 모두)이었나 — 숨은 엔딩 단서용
@@ -889,6 +907,31 @@ export class Battle {
     await flash(t.ent, '#bff0c8');
   }
 
+  /** 얼음 정령에게 맞은 아군: 정령 반대쪽으로 한 칸 밀려나고, 빙판 위면 한 칸 더 */
+  private async shoveAlly(a: BUnit, from: BUnit) {
+    const dx = sign(a.x - from.x);
+    const dy = sign(a.y - from.y);
+    let moved = 0;
+    for (let i = 0; i < 2; i++) {
+      const nx = a.x + dx;
+      const ny = a.y + dy;
+      if (!this.free(nx, ny) || this.allyAt(nx, ny)) break;
+      await moveEnt(a.ent, [nx, ny]);
+      a.x = nx;
+      a.y = ny;
+      moved++;
+      if (this.tileAt(nx, ny) !== 'ice') break;
+    }
+    if (moved) fx.text(a.x + 0.5, a.y - 0.3, moved > 1 ? '밀려 미끄덩!' : '밀려남', '#bfe3f2');
+  }
+
+  /** 늪 거북의 등딱지: 상하좌우 곧은 방향에서 맞으면 피해 절반 (올림) */
+  private shellCut(a: BUnit, u: BUnit, dmg: number) {
+    if (!MOBS[u.mob!]?.tags?.includes('shell') || (a.x !== u.x && a.y !== u.y)) return dmg;
+    fx.text(u.x + 0.5, u.y - 0.35, '등딱지', '#b8c890');
+    return Math.ceil(dmg / 2);
+  }
+
   private shielded(u: BUnit) {
     return u.mob === 'strawking' && this.phase === 2 && this.tiles[u.y][u.x] === 'throne' && this.units.some((o) => o.hp > 0 && o.mob === 'strawpawn');
   }
@@ -912,6 +955,12 @@ export class Battle {
     u.retaliating = false;
     u.ent.glow = u.shiny ? 'rgba(255,214,90,0.55)' : undefined;
     hitFx(u.ent, dmg, undefined, melee);
+    u.awake = true;
+    if (u.hp > 0 && MOBS[u.mob!]?.tags?.includes('rage') && (u.rage ?? 0) < 2) {
+      u.rage = (u.rage ?? 0) + 1;
+      u.atk++;
+      fx.text(u.x + 0.5, u.y - 0.45, `분노 +${u.rage}`, '#ff7a5a', true);
+    }
     return u.hp <= 0;
   }
 
@@ -954,6 +1003,13 @@ export class Battle {
         this.hows.push({ mob: u.mob, how });
         if (u.shiny) this.shinyKills.push(u.mob);
         if (u.pre) this.preKills.push(u.mob);
+        // 수 번호: 다른 몹이 쓰러질 때마다 번호·공격 +1 (최대 3.)
+        for (const o of this.enemies()) if (o !== u && o.mob === 'number' && (o.count ?? 1) < 3) {
+          o.count = (o.count ?? 1) + 1;
+          o.atk++;
+          o.ent.badge = `${o.count}.`;
+          fx.text(o.x + 0.5, o.y - 0.4, `${o.count}.`, '#f0e6c8', true);
+        }
       }
       if (u.loot) {
         G.gold += u.loot;
@@ -1249,6 +1305,12 @@ export class Battle {
 
   computeIntents() {
     const reserved = new Set<string>();
+    for (const u of this.enemies()) if (u.mob === 'smudge') {
+      const next = u.form === undefined ? rand(3) : (u.form + 1 + rand(2)) % 3;
+      if (u.form !== undefined && next !== u.form) fx.text(u.x + 0.5, u.y - 0.3, `→ ${SMUDGE_FORMS[next].name}`, '#a8a8d8');
+      u.form = next;
+      u.ent.badge = SMUDGE_FORMS[next].glyph;
+    }
     for (const u of this.enemies()) u.intent = this.decide(u, reserved);
     this.hiddenRules();
     const b = this.boss();
@@ -1271,6 +1333,7 @@ export class Battle {
     // 순간 이동·소환 예고: 다음 적 턴에 일어날 일을 지금 정해 판 위에 표시한다
     this.warpTo = null;
     this.summonAt = [];
+    for (const u of this.enemies()) if (u.plan) this.summonAt.push(u.plan.spot);
     if (!b) return;
     const nt = this.bossTick + 1;
     const bPos: Vec = b.intent?.t === 'move' ? b.intent.to : [b.x, b.y];
@@ -1432,6 +1495,30 @@ export class Battle {
         return this.decideMove(u, reserved, near);
       }
       default: {
+        // 폐허 석상: 누가 2칸 안에 오기 전(또는 맞기 전)엔 잠들어 있다
+        if (d.tags?.includes('dormant') && !u.awake) {
+          if (this.liveAllies().some((a) => cheb([a.x, a.y], [u.x, u.y]) <= 2)) {
+            u.awake = true;
+            fx.text(u.x + 0.5, u.y - 0.3, '깨어났다!', '#d8d0c0', true);
+          } else return { t: 'idle', why: '잠듦 (2칸 안에 오면 깨어남)' };
+        }
+        // 묘수 기호: 몇 턴마다 다른 몹 하나를 주인공 곁으로 옮긴다 (옮길 자리는 금빛 점선으로 미리)
+        if (d.tags?.includes('warp')) {
+          u.plan = undefined;
+          if ((u.warpCd ?? 1) > 0) { u.warpCd = (u.warpCd ?? 1) - 1; return { t: 'idle', why: '묘수를 고르는 중' }; }
+          const hr = this.hero;
+          const cands = this.enemies().filter((o) => o !== u && !o.under && MOBS[o.mob!].ai !== 'boss' && MOBS[o.mob!].ai !== 'queen' && MOBS[o.mob!].ai !== 'static' && MOBS[o.mob!].ai !== 'turret' && cheb([o.x, o.y], [hr.x, hr.y]) > 1);
+          const spots = KING.map(([dx, dy]) => [hr.x + dx, hr.y + dy] as Vec).filter(([x, y]) => this.free(x, y) && !reserved.has(key(x, y)) && !this.erase.some((e) => eq(e, [x, y])));
+          if (cands.length && spots.length) {
+            const o = pick(cands);
+            const spot = pick(spots);
+            reserved.add(key(spot[0], spot[1]));
+            u.plan = { uid: o.uid, spot };
+            u.warpCd = 3;
+            return { t: 'idle', why: '!! 묘수 — 금빛 점선으로 몹을 옮긴다' };
+          }
+          return { t: 'idle', why: '묘수를 고르는 중' };
+        }
         // 두더지: 땅속에 숨었다가 주인공 곁 칸(미리 보임)에서 튀어나와 주변을 친다
         if (d.tags?.includes('burrow')) {
           if (u.under) {
@@ -1578,6 +1665,24 @@ export class Battle {
       const it = u.intent;
       if (!it) continue;
       const tags = MOBS[u.mob!].tags ?? [];
+      if (u.plan) {
+        const o = this.units.find((x) => x.uid === u.plan!.uid && x.hp > 0);
+        const [sx, sy] = u.plan.spot;
+        u.plan = undefined;
+        if (o && this.free(sx, sy)) {
+          fx.text(u.x + 0.5, u.y - 0.3, '!!', '#ff6a5a', true);
+          o.ent.alpha = 0.2;
+          await new Promise((r) => setTimeout(r, fx.instant ? 0 : 160));
+          o.x = sx;
+          o.y = sy;
+          o.ent.x = sx;
+          o.ent.y = sy;
+          o.ent.alpha = 1;
+          o.intent = { t: 'idle', why: '옮겨짐' };
+          await popIn(o.ent);
+        }
+        continue;
+      }
       if (u.goUnder) {
         u.goUnder = false;
         u.under = true;
@@ -1621,6 +1726,7 @@ export class Battle {
               u.loot = n;
               fx.text(u.x + 0.5, u.y - 0.4, `${n}G 물어 감!`, '#ffd65a', true);
             }
+            if (tags.includes('shove') && tgt.hp > 0) await this.shoveAlly(tgt, u);
             if (tags.includes('root') && tgt.hp > 0) {
               tgt.rootNext = true;
               fx.text(tgt.x + 0.5, tgt.y - 0.3, '묶임!', '#dfe4ea');
@@ -2080,7 +2186,7 @@ export class Battle {
     }
     if (this.lines.length) list.append(h('p', { class: 'hint warn-text' }, '보라색 줄 = 다음 적 턴에 체크 라인이 2 피해를 준다 (적도 맞는다).'));
     if (this.warpTo) list.append(h('p', { class: 'hint warn-text' }, '보라색 점선 = 다음 적 턴에 퀸이 수를 무를 자리. 그 칸을 피하자.'));
-    if (this.summonAt.length) list.append(h('p', { class: 'hint warn-text' }, '금빛 점선 = 다음 적 턴에 새 적이 소환될 자리. 미리 길을 비우거나 막자.'));
+    if (this.summonAt.length) list.append(h('p', { class: 'hint warn-text' }, '금빛 점선 = 다음 적 턴에 새 적이 나타나거나 몹이 옮겨 올 자리. 미리 길을 비우거나 막자.'));
     if (this.erase.length) list.append(h('p', { class: 'hint warn-text' }, '주황색 칸 = 다음 적 턴에 지워진다.'));
     if (this.frost.length) list.append(h('p', { class: 'hint warn-text' }, '푸른 눈송이 칸 = 다음 적 턴에 서리 폭풍 (1 피해, 얼음이 된다).'));
     const flat = this.tiles.flat();
