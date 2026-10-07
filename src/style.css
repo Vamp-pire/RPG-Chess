@@ -906,3 +906,10 @@ button.qline.tracked { background: #2b2213; }
 .pre-name { color: #ffb27a; }
 .pity { margin-top: 10px; text-align: right; }
 .recipe.unseen b { color: var(--muted); }
+
+/* 대화 인물: 화면 위쪽 대신 대화 상자 양옆 아래에 선다 (사용자 요청 스크린샷) — 상자 옆에 자리가 넉넉한 넓은 화면에서 */
+@media (min-width: 1240px) {
+  .vn-char { bottom: 2vh; width: min(calc(50vw - 380px), 260px); height: min(42vh, 330px); }
+  .vn-char.left { left: auto; right: calc(50% + 370px); }
+  .vn-char.right { right: auto; left: calc(50% + 370px); }
+}

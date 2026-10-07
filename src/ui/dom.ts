@@ -170,13 +170,23 @@ export function splitLines(text: string): string[] {
   const body = quoted ? text.trim().slice(1, -1) : text;
   const out: string[] = [];
   for (const para of body.split(/\n+/)) {
-    const sents = para.match(/[^.?!]+[.?!]+["”']?\s*|[^.?!]+$/g) ?? [para];
+    const raws = para.match(/[^.?!]+[.?!]+["”'…)）]*\s*|[^.?!]+$/g) ?? [para];
+    // 괄호가 열린 채 끝난 문장은 닫힐 때까지 이어 붙인다 (따옴표는 아래에서 줄마다 닫아 준다)
+    // (괄호 속 "(서두를 필요는 없다. …)"가 둘로 갈라져 어색했다 — 사용자 제보)
+    const sents: string[] = [];
+    let open = '';
+    for (const r of raws) {
+      open += r;
+      const paren = (open.match(/[(（]/g) ?? []).length - (open.match(/[)）]/g) ?? []).length;
+      if (paren <= 0) { sents.push(open); open = ''; }
+    }
+    if (open) sents.push(open);
     let buf = '';
     for (const raw of sents) {
       const t = raw.trim();
       if (!t) continue;
-      // 한 줄은 대략 45자까지: 짧은 문장은 이어 붙이고, 길면 끊는다
-      if (buf && (buf + ' ' + t).length <= 45) buf = `${buf} ${t}`;
+      // 한 줄은 대략 80자까지: 짧은 문장은 이어 붙이고, 그보다 길 때만 문장 끝에서 끊는다 (너무 잘게 끊지 않게)
+      if (buf && (buf + ' ' + t).length <= 80) buf = `${buf} ${t}`;
       else { if (buf) out.push(buf); buf = t; }
     }
     if (buf) out.push(buf);

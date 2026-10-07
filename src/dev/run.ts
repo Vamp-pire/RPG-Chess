@@ -2,7 +2,7 @@
 // 금빛 별(안내)을 따라가고, 전투는 강한 봇, 장비는 주운 것 중 가장 좋은 것을 끼고 대장간에서 개조·강화한다.
 // 사용: const r = await import('/src/dev/run.ts'); r.startRun(app); … window.__run 으로 진행 확인, r.report()
 import type { App } from '../game/app';
-import { G, curSlot, emit, loadout, newGame, save, setSlot, spendMats, matHave, baseRules, usable } from '../core/state';
+import { G, curSlot, emit, loadout, maxHp, newGame, save, setSlot, spendMats, matHave, baseRules, usable } from '../core/state';
 import { ItemStats, ModEff, SLOTS, Slot, itemStats, modLabel, modOptions } from '../core/items';
 import { MATS, MAT_ORDER, MatId } from '../data/materials';
 import { AREAS } from '../data/areas';
@@ -24,8 +24,10 @@ const FORGE_AREAS = ['town', 'camp', 'frostpost', 'margin'];
 
 /** 장비 점수: 새로 생기는 행마 칸 + 특성 + 능력 + 고유 효과 */
 function gearScore(s: ItemStats, others: ReturnType<typeof baseRules>) {
-  const t = Object.values(s.traits).reduce((a, b) => a + (b ?? 0), 0);
-  return newSquares(others, s.rules) + t * 3 + (s.ability ? 5 : 0) + (s.uniq ? 4 : 0) + s.hp * 2 + (s.rules.some((r) => r.gun) ? 30 : 0);
+  // 특성마다 쓸모가 다르다 (점착·기보 이탈은 거의 안 쓰인다)
+  const W: Record<string, number> = { sharp: 4, sturdy: 4, light: 3, counter: 3, undying: 4, bind: 3, sticky: 0.5, kibo: 1 };
+  const t = Object.entries(s.traits).reduce((a, [k, v]) => a + (v ?? 0) * (W[k] ?? 2), 0) / 3;
+  return newSquares(others, s.rules) * 1.5 + t * 3 + (s.ability ? 5 : 0) + (s.uniq ? 4 : 0) + s.hp * 2 + (s.rules.some((r) => r.gun) ? 30 : 0);
 }
 const othersFor = (slot: Slot) => {
   const cur = G.items.find((i) => i.id === G.equip[slot]);
@@ -155,6 +157,12 @@ async function loop(app: App, st: RunState, maxFights: number, job: string) {
         continue;
       }
       autoEquip(st);
+      // 사람처럼: 체력이 60% 아래면 거점으로 돌아가 쉬고 나서 싸운다 (봇이 체력 2로 문지기에 덤비던 것)
+      const home = ({ 1: 'town', 2: 'camp', 3: 'frostpost', 4: 'margin' } as Record<number, string>)[AREAS[G.area].region] ?? 'town';
+      if (G.hp < maxHp() * 0.6) {
+        if (G.area === home) { G.hp = maxHp(); delete G.flags.will_used; G.flags.dest = ''; st.notes.push(`#${st.recs.length} 쉼`); }
+        else G.flags.dest = home;
+      }
       if (FORGE_AREAS.includes(G.area)) { autoCraft(st); autoEnhance(st); autoEquip(st); }
       // 막혔으면 파밍: 이 지역 몹을 먼저 친다
       if (farm > 0 && app.explore.mobs.length) {

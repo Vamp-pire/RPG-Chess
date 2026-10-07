@@ -3,7 +3,7 @@ import { AUTHOR, CHANNEL, CREDITS, PATCH_NOTES, PatchNote, betaName, keepCurrent
 import { h, modal } from './dom';
 
 // 패치 노트: 항목 앞의 '전투:' 같은 머리말로 묶어 색 있는 제목 아래에 보여 준다 (빼곡하게 붙은 목록은 읽기 어렵다는 베타 의견)
-const CAT_COLOR: Record<string, string> = { 전투: '#ff9a7a', 난이도: '#ff9a7a', 대장간: '#ffd27a', 상점: '#ffd27a', 퍼즐: '#9fd8ff', 화면: '#c9b8ff', 대화: '#c9b8ff', 이야기: '#c9b8ff', 탐험: '#9fe08a', 환생: '#9fe08a', 저장: '#cfd8e8', 고침: '#9aa4b0' };
+const CAT_COLOR: Record<string, string> = { 장비: '#ffd27a', 용사: '#9fe08a', 몹: '#ff9a7a', 직업: '#c9b8ff', 전투: '#ff9a7a', 난이도: '#ff9a7a', 대장간: '#ffd27a', 상점: '#ffd27a', 퍼즐: '#9fd8ff', 화면: '#c9b8ff', 대화: '#c9b8ff', 이야기: '#c9b8ff', 탐험: '#9fe08a', 환생: '#9fe08a', 저장: '#cfd8e8', 고침: '#9aa4b0' };
 function groupItems(items: string[]) {
   const groups = new Map<string, string[]>();
   for (const t of items) {
