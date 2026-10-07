@@ -6,7 +6,8 @@ const MOBS = ['slime', 'rat', 'bat', 'golem', 'thorn', 'hound', 'strawking', 'st
   // 장비 개편 새 몹 (캔바로 만든 그림)
   'hopper', 'mole', 'crow', 'snake', 'turtle', 'statue', 'cannon', 'bear', 'rabbit', 'smudge', 'brilliant', 'number'];
 const MATS = ['gel', 'tooth', 'wing', 'moss', 'thorn', 'fiber', 'pearl', 'silver', 'crack', 'fang', 'shard', 'crown', 'skin', 'silk', 'bone', 'ecto', 'mirror', 'blunder', 'qcrown', 'fogkey', 'trigger',
-  'fur', 'frost', 'ice', 'tusk', 'kcrown', 'ink', 'page', 'quill', 'lastword'];
+  'fur', 'frost', 'ice', 'tusk', 'kcrown', 'ink', 'page', 'quill', 'lastword',
+  'leg', 'claw', 'feather', 'scale', 'shell', 'rubble', 'powder', 'bearclaw', 'rabbitfoot', 'smear', 'redink', 'numeral'];
 /** 마을 건물 (없으면 코드 도형) */
 const OBJS = ['forge', 'shop', 'inn', 'board', 'record', 'puzzle', 'smith', 'peddler'];
 /** 장비 그림 (밑판 id, 캔바로 만든 것만 — 없으면 부위 이모지) */
