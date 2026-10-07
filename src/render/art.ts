@@ -1,3 +1,4 @@
+import { BASE_LIST } from '../data/gear';
 // Canva에서 만든 그림 불러오기: 흰 배경을 가장자리부터 지워 투명하게 만든 뒤 잘라 둔다.
 // 파일이 없으면 코드로 그린 임시 도형을 그대로 쓴다.
 const MOBS = ['slime', 'rat', 'bat', 'golem', 'thorn', 'hound', 'strawking', 'strawpawn', 'toad', 'spider', 'skeleton', 'wraith', 'bonelord', 'misqueen', 'blunder',
@@ -9,7 +10,7 @@ const MATS = ['gel', 'tooth', 'wing', 'moss', 'thorn', 'fiber', 'pearl', 'silver
 /** 마을 건물 (없으면 코드 도형) */
 const OBJS = ['forge', 'shop', 'inn', 'board', 'record', 'puzzle', 'smith', 'peddler'];
 /** 장비 그림 (밑판 id, 캔바로 만든 것만 — 없으면 부위 이모지) */
-export const GEAR_ART = new Set(['r1_claw', 'r1_dart', 'r1_scythe', 'r2_snakeblade', 'r2_shellsword', 'r2_sling3', 'r3_cannon', 'r3_bearclaw', 'r3_rabbitboom', 'r4_smudgeboom', 'r4_redbow', 'r4_numblade']);
+export const GEAR_ART = new Set(BASE_LIST.filter((b) => b.slot === 'weapon').map((b) => b.id));
 export const ALIAS: Record<string, string> = { slimelet: 'slime', echo: 'misqueen', inkdrop: 'inkblot' };
 
 const canvases = new Map<string, HTMLCanvasElement>();
