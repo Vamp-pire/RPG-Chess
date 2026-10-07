@@ -24,7 +24,7 @@ import { fx } from '../render/fx';
 import { pieceSrc, portraitUrl } from '../render/sprites';
 import { Choice, clearCoach, coach, cutin, dialog, h, modal, modalOpen, patternGrid, setDialogHero, toast, helpFold } from '../ui/dom';
 import { openCodex } from '../ui/codex';
-import { deltaChip, matIcon, newSquares, openForge, invGrid } from '../ui/forge';
+import { deltaChip, gearIcon, matIcon, newSquares, openForge, invGrid } from '../ui/forge';
 import { openDifficulty, openHelp, openMap, openSettings } from '../ui/extra';
 import { prefs } from '../core/prefs';
 import { PUZZLES, openBoard, openInn, openInventory, openJobSelect, openPuzzle, openShop } from '../ui/town';
@@ -785,7 +785,7 @@ export class App {
       const t = Q_TIERS[s.tier ?? 0];
       const on = G.equip[it.slot] === it.id;
       const tag = !usable(it) ? `${FAM_NAME[s.fam!]} 계열 — 지금은 못 써요` : on ? '바로 장착!' : `${t.name} ${s.q}%`;
-      list.append(h('div', { class: `spoil gear ${(s.tier ?? 0) >= 2 ? 'rare' : ''}`, style: { animationDelay: `${i++ * 90}ms`, '--qc': t.color } }, h('span', { class: 'gear-ico' }, SLOT_ICON[it.slot]), h('b', { style: { color: t.color } }, s.name), h('span', { class: 'muted small' }, SLOT_INFO[it.slot].name), deltaChip(it), h('em', { class: 'spoil-tag' }, tag)));
+      list.append(h('div', { class: `spoil gear ${(s.tier ?? 0) >= 2 ? 'rare' : ''}`, style: { animationDelay: `${i++ * 90}ms`, '--qc': t.color } }, gearIcon(it.slot, it.base, 40), h('b', { style: { color: t.color } }, s.name), h('span', { class: 'muted small' }, SLOT_INFO[it.slot].name), deltaChip(it), h('em', { class: 'spoil-tag' }, tag)));
     }
     for (const [id, n] of drops) {
       const isRare = MATS[id].rare || MATS[id].key;

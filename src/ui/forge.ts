@@ -381,10 +381,19 @@ function matTags(id: MatId): string[] {
   return tags;
 }
 
+/** 장비 그림: 캔바 그림이 있으면 그림, 없으면 부위 이모지 */
+const SLOT_EMOJI: Record<string, string> = { weapon: '⚔️', boots: '👢', armor: '🛡️', engrave: '🔱', relic: '🔮' };
+export function gearIcon(slot: string, baseId?: string, size = 28): HTMLElement {
+  const url = baseId ? artUrl(`g:${baseId}`) : null;
+  if (url) return h('img', { class: 'gear-img', src: url, alt: '', style: { width: `${size}px`, height: `${size}px` } });
+  return h('span', { class: 'gear-ico', style: { fontSize: `${Math.round(size * 0.78)}px` } }, SLOT_EMOJI[slot] ?? '⚔️');
+}
+
 /** 장비 이름 줄: 품질 %, 계열, 고유 */
 export function itemHead(s: ItemStats) {
   const t = Q_TIERS[s.tier ?? 0];
   return h('div', { class: 'preview-head' },
+    s.base ? gearIcon(s.base.slot, s.base.id, 30) : null,
     h('b', { class: 'iname', style: s.legacy ? {} : { color: t.color } }, s.name),
     s.legacy ? h('span', { class: 'chip' }, '옛 장비') : h('span', { class: 'chip q-chip', style: { borderColor: t.color, color: t.color } }, `품질 ${s.q}%`),
     s.fam ? h('span', { class: `chip fam-${s.fam}` }, `${FAM_NAME[s.fam]} · ${FAM_STYLE[s.fam]}`) : null,

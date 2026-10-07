@@ -15,7 +15,7 @@ import { BOARD_REWARDS, QUESTS, progressText, q, qComplete, qStart } from '../ga
 import { pieceSrc } from '../render/sprites';
 import { clearCoach, dialog, h, modal, toast } from './dom';
 import { DIFFS } from '../core/difficulty';
-import { deltaChip, invGrid, itemHead, matIcon, statsView } from './forge';
+import { deltaChip, gearIcon, invGrid, itemHead, matIcon, statsView } from './forge';
 import { loreText } from './lore';
 import { eggShopBought } from '../game/eggs';
 
@@ -76,7 +76,7 @@ export function openShop(onChange: () => void, peddler = false) {
         const b = h('button', { class: 'btn small', disabled: sold || G.gold < g.price }, sold ? '샀음' : `${g.price}G`);
         b.addEventListener('click', () => { if (G.gold < g.price || G.flags[g.key]) return; G.gold -= g.price; G.flags[g.key] = true; const it = addItem(g.base.id, g.q); emit('buy'); sfx('coin'); save(); toast(`${itemStats(it).name}을(를) 샀다.${G.equip[it.slot] === it.id ? ' 바로 장착했어요.' : ''}`, 'good'); render(); });
         const fam = g.base.fam ? ` · ${FAM_NAME[g.base.fam]}` : '';
-        buy.append(h('div', { class: 'shop-row deal' }, h('span', { class: 'gear-ico' }, '⚔'), h('span', {}, g.base.name), h('span', { class: 'muted' }, `${SLOT_INFO[g.base.slot].name}${fam}`), b));
+        buy.append(h('div', { class: 'shop-row deal' }, gearIcon(g.base.slot, g.base.id, 24), h('span', {}, g.base.name), h('span', { class: 'muted' }, `${SLOT_INFO[g.base.slot].name}${fam}`), b));
       }
     }
     const sell = h('div', { class: 'shop-col' }, h('div', { class: 'sub' }, peddler ? '팔기 (마을보다 30% 쌈)' : `팔기${hasJob('contractor') ? ' (계약자 +25%)' : ''}`));

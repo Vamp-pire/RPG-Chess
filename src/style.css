@@ -945,3 +945,4 @@ button.qline.tracked { background: #2b2213; }
 .preview-tag { color: #8fe0a0; margin-bottom: 4px; }
 /* 직업 선택: 계열 무기 한 줄 */
 .job-fam { margin: -2px 0 6px; color: var(--muted); }
+.gear-img { object-fit: contain; vertical-align: middle; }
