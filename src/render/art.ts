@@ -10,7 +10,7 @@ const MATS = ['gel', 'tooth', 'wing', 'moss', 'thorn', 'fiber', 'pearl', 'silver
 /** 마을 건물 (없으면 코드 도형) */
 const OBJS = ['forge', 'shop', 'inn', 'board', 'record', 'puzzle', 'smith', 'peddler'];
 /** 장비 그림 (밑판 id, 캔바로 만든 것만 — 없으면 부위 이모지) */
-export const GEAR_ART = new Set(BASE_LIST.filter((b) => b.slot === 'weapon').map((b) => b.id));
+export const GEAR_ART = new Set(BASE_LIST.map((b) => b.id));
 export const ALIAS: Record<string, string> = { slimelet: 'slime', echo: 'misqueen', inkdrop: 'inkblot' };
 
 const canvases = new Map<string, HTMLCanvasElement>();
