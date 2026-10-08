@@ -45,6 +45,8 @@ export class App {
   battle: Battle | null = null;
   battleMob: RMob | null = null;
   onWin: (() => void) | null = null;
+  /** 전투 화면으로 넘어가는 중 (암전): 판 클릭·메뉴 단축키를 받지 않는다 */
+  entering = false;
   side: HTMLElement;
   last = performance.now();
   keyBuf = '';
@@ -66,7 +68,7 @@ export class App {
       badge: (d) => this.npcBadge(d),
     });
     canvas.addEventListener('pointerdown', (e) => {
-      if (modalOpen()) return;
+      if (modalOpen() || this.entering) return;
       const [x, y] = this.renderer.pick(e)!;
       if (this.mode === 'explore') this.explore.click(x, y);
       else if (this.mode === 'battle') this.battle?.click(x, y);
@@ -130,7 +132,7 @@ export class App {
       else if (this.battle?.mode) { this.battle.mode = null; this.battle.refresh(); }
       return;
     }
-    if (modalOpen() || this.mode === 'title') return;
+    if (modalOpen() || this.mode === 'title' || this.entering) return;
     // 메뉴 단축키 (탐험 중에만)
     if (this.mode === 'explore' && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const fn = this.menuKeys[e.key.toLowerCase()];
@@ -497,6 +499,7 @@ export class App {
     // 눈토끼를 잡았다: 전투 없이 보상 (3지역 장비 하나, 훌륭한 품질 이상 + 토끼 발)
     if (m.sprite === 'rabbit') {
       this.explore.removeMob(m);
+      this.explore.busy = false;
       G.dex.rabbit = (G.dex.rabbit ?? 0) + 1;
       addBag('rabbitfoot', 1);
       const pool = basesFrom('rabbit', 3);
@@ -518,7 +521,7 @@ export class App {
           ['"싸우지 않으면 아무도 못 이겨. 그건 끝이 아니야."', '있어. 스테일메이트. 아무도 안 지고 끝나는 거.'],
           ['"…그럼 증명해 봐. 난 안 멈춘다."', '나도 안 쓰러질게.'],
         ]).then(() => { G.flags.talk_author = true; this.startEncounter(FIXED_ENCS.author_peace); }) },
-      ], { sprite: 'm:author', speaker: '저자' });
+      ], { sprite: 'm:author', speaker: '저자', onDismiss: () => this.explore.resume() });
       return;
     }
     const party = m.party ?? [m.sprite];
@@ -532,6 +535,7 @@ export class App {
     this.onWin = opts.onWin ?? null;
     const fade = document.getElementById('fade')!;
     fade.classList.add('on', 'battle');
+    this.entering = true;
     const go = async () => {
       fx.clear();
       this.battle = new Battle(enc, { end: (r, k) => this.endBattle(r, k), refresh: () => this.renderSide() }, { ambush: opts.ambush });
@@ -542,6 +546,7 @@ export class App {
           : '';
       if (bossNote) this.battle.bossNote = bossNote;
       this.mode = 'battle';
+      this.entering = false;
       this.renderSide();
       fade.classList.remove('on', 'battle');
       if (opts.ambush) toast('암살자의 기습! 적 하나가 약해졌다.', 'good');

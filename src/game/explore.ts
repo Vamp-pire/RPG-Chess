@@ -356,7 +356,7 @@ export class Explore {
     }
     const hit = await this.mobsTurn();
     if (hit) {
-      this.busy = false;
+      // 잠금은 풀지 않는다: 전투로 넘어가는 동안 NPC에게 말을 걸면 대화가 전투 화면 위에 남았다 (베타 제보). 돌아오면 resume이 푼다
       this.hooks.startBattle(hit, false);
       return 'battle';
     }

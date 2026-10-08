@@ -340,6 +340,7 @@ export function openInventory(onChange: () => void) {
         const text = [...back].map(([m, n]) => `${MATS[m].name} ×${n}`).join(', ');
         dialog('한 번에 분해', `끼지 않은 평범한 장비 ${junk.length}개를 녹일까요? (고유·개조·강화한 장비는 빼요) 돌려받는 재료: ${text}`, [
           { label: '모두 녹인다', onPick: () => {
+            if (junk.some((j) => !G.items.includes(j))) return; // 이미 녹였다
             for (const [m, n] of back) G.store[m] = (G.store[m] ?? 0) + n;
             const ids = new Set(junk.map((x) => x.id));
             G.items = G.items.filter((i) => !ids.has(i.id));
@@ -372,6 +373,7 @@ export function openInventory(onChange: () => void) {
     const text = [...back].map(([m, n]) => `${MATS[m].name} ×${n}`).join(', ');
     dialog('분해', `${s.name}을(를) 녹일까요? 돌려받는 재료: ${text}`, [
       { label: '녹인다', onPick: () => {
+        if (!G.items.includes(it)) return; // 이미 녹였다
         for (const [m, n] of back) G.store[m] = (G.store[m] ?? 0) + n;
         G.items = G.items.filter((i) => i.id !== id);
         if (G.equip[it.slot] === id) G.equip[it.slot] = null;
@@ -396,6 +398,7 @@ export function openInventory(onChange: () => void) {
     const list = back.length ? back.map(([m, n]) => `${MATS[m].name} ×${n}`).join(', ') : '돌려받는 재료 없음';
     dialog('재련', `${itemStats(it).name}을(를) 녹일까요? 강화에 쓴 골드는 돌아오지 않아요. 돌려받는 재료: ${list}`, [
       { label: '녹인다', onPick: () => {
+        if (!G.items.includes(it)) return; // 이미 녹였다
         for (const [m, n] of back) G.store[m] = (G.store[m] ?? 0) + n;
         G.items = G.items.filter((i) => i.id !== id);
         if (G.equip[it.slot] === id) G.equip[it.slot] = null;

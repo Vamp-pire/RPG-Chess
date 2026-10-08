@@ -73,6 +73,7 @@ function npcPortrait(sprite: string, npc?: string) {
  */
 export function dialog(title: string, text: string | HTMLElement, choices: Choice[], opts: { speaker?: string; img?: string; sprite?: string; npc?: string; self?: boolean; noClose?: boolean; onDismiss?: () => void } = {}) {
   modalDepth++;
+  (document.activeElement as HTMLElement | null)?.blur?.();
   const hero = heroPortrait?.() ?? null;
   const npcSrc = opts.sprite ? npcPortrait(opts.sprite, opts.npc) : opts.self ? null : opts.img;
   const name = opts.speaker ?? title;
