@@ -305,7 +305,9 @@ export class Battle {
     const isBoss = d.ai === 'boss' || d.ai === 'queen';
     const scale = minion || isBoss || reg < 2 ? 1 : reg === 2 ? (big ? 0.9 : 0.75) : big ? 0.85 : 0.7;
     const pre = !minion && !big && !shiny && !this.enc.guest && !this.enc.hold && !this.enc.daily && Math.random() < PRE_RATE[G.diff] ? this.rollPre(m) : undefined;
-    const hp = HP_MUL * Math.max(1, Math.round((d.hp + bonus + tension) * scale) + (shiny ? 1 : 0) + (pre === 'tough' ? 1 : 0));
+    // 보스는 2지역부터 체력 1.5배 (베타 의견: 보스가 치고 빠지기에 너무 쉽게 쓰러진다)
+    const bossMul = isBoss && reg >= 2 ? 1.5 : 1;
+    const hp = HP_MUL * Math.max(1, Math.round((d.hp + bonus + tension) * scale * bossMul) + (shiny ? 1 : 0) + (pre === 'tough' ? 1 : 0));
     const sprite = m === 'rook' ? 'p:br' : `m:${m}`;
     const u: BUnit = { uid: UID++, mob: m, x, y, hp, maxHp: hp, atk: d.atk, intent: null, stun: 0, shiny, pre, burrowCd: 1, ent: mkEnt(`u${UID}`, sprite, x, y, { hp, maxHp: hp, bob: true, ...(shiny ? { glow: 'rgba(255,214,90,0.55)' } : {}) }) };
     if (shiny) {
@@ -813,6 +815,7 @@ export class Battle {
       this.gunReload = 3; // 이번 턴 끝에 1 줄어, 다음 두 턴 동안 못 쏜다
       if (shotDead) await this.kill(u, false, 'shot');
       else if (stance) await this.retaliate(u, a);
+      else await this.bossAnswer(u, a);
       await this.checkPhase();
       return;
     }
@@ -857,6 +860,8 @@ export class Battle {
       }
     } else if (stance && u.hp > 0 && await this.retaliate(u, a)) {
       // 반격을 받았으면 속박은 걸리지 않는다
+    } else if (!melee && u.hp > 0 && await this.bossAnswer(u, a)) {
+      // 보스가 응수해 다가섰다 (속박은 걸리지 않는다)
     } else if (u.hp > 0 && ((isHero && this.bind > 0) || a.ally === 'ghostknight')) {
       if (isHero) this.bind--;
       u.intent = { t: 'idle', why: '묶임' };
@@ -1063,6 +1068,7 @@ export class Battle {
     const b = this.boss();
     if (b && this.phase === 1 && b.hp <= Math.floor(b.maxHp / 2)) {
       this.phase = 2;
+      toast('2단계: 보스가 멀리서 맞으면 곧바로 다가서고(응수), 빗나가면 두 칸까지 따라붙어요.', 'info', 4500);
       if (b.mob === 'strawking') {
         this.bossNote = '옥좌로 물러나 밀짚 폰을 방패로 삼고, 곁에 붙은 폰을 흡수해 체력을 되찾는다. 폰부터 치우자!';
         await cutin('밀짚왕이 분노한다', '옥좌로 물러나 밀짚 폰을 방패로 삼고, 곁에 붙은 폰을 흡수해 체력을 되찾는다. 폰부터 치우자!', 'phase');
@@ -1261,6 +1267,17 @@ export class Battle {
       }
     }
     await this.checkPhase();
+  }
+
+  /** 2단계 보스: 멀리서 맞으면 곧바로 한 칸 다가선다 (치고 빠지기 억제). 쉬움은 그대로. 다가섰으면 true */
+  private async bossAnswer(u: BUnit, a: BUnit): Promise<boolean> {
+    const d = MOBS[u.mob!];
+    if (u.hp <= 0 || this.phase !== 2 || (d.ai !== 'boss' && d.ai !== 'queen') || !DIFFS[G.diff].chase || u.stun > 0) return false;
+    if (cheb([a.x, a.y], [u.x, u.y]) <= 1) return false;
+    const from: Vec = [u.x, u.y];
+    fx.text(u.x + 0.5, u.y - 0.45, '응수!', '#ff8a6a', true);
+    await this.chaseAfterMiss(u);
+    return !eq(from, [u.x, u.y]);
   }
 
   /** 공격이 빗나간 적: 킹처럼 8방향으로 딱 한 칸, 가장 가까운 아군 쪽으로 다가선다 */
@@ -1737,7 +1754,11 @@ export class Battle {
             // 보스도 따라붙는다 (베타 제보: 밀짚왕만 안 따라붙어 이상하다 + '피해를 안 받는 사이클'이 너무 쉽다)
             // 장비 개편: 따라붙는 건 이름에 '따라붙는'이 붙은 몹과 보스만 (보이는 규칙으로)
             const bossy = MOBS[u.mob!].ai === 'boss' || MOBS[u.mob!].ai === 'queen';
-            if (DIFFS[G.diff].chase && (u.pre === 'chase' || bossy)) await this.chaseAfterMiss(u);
+            if (DIFFS[G.diff].chase && (u.pre === 'chase' || bossy)) {
+              await this.chaseAfterMiss(u);
+              // 2단계 보스는 한 칸 더
+              if (bossy && this.phase === 2 && u.hp > 0) await this.chaseAfterMiss(u);
+            }
           }
         }
       } else if (it.t === 'move') {

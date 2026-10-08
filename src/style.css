@@ -946,3 +946,9 @@ button.qline.tracked { background: #2b2213; }
 /* 직업 선택: 계열 무기 한 줄 */
 .job-fam { margin: -2px 0 6px; color: var(--muted); }
 .gear-img { object-fit: contain; vertical-align: middle; }
+
+/* 지역 기록률 */
+.record-line { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12px; }
+.record-bar { position: relative; flex: 1; height: 7px; border-radius: 4px; background: rgba(255,255,255,0.1); overflow: visible; }
+.record-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; transition: width 0.4s; }
+.record-bar b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #f0e0b0; opacity: 0.8; }

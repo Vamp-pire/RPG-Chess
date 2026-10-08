@@ -31,6 +31,7 @@ import { PUZZLES, openBoard, openInn, openInventory, openJobSelect, openPuzzle, 
 import { initAchievements, openAchievements, syncAchievements } from './achievements';
 import { Battle, BattleResult } from './battle';
 import { Explore, RMob, RObj, exitOpen } from './explore';
+import { RECORD_NEED, recordBlocks, recordText, showRecord } from './record';
 import { talk } from './npcs';
 import { eggGold, eggKey, eggLose, eggShopOpen, eggTime, eggWall } from './eggs';
 import { inTower, startTower, towerBest, towerFell, towerRegion, towerUnlocked } from './tower';
@@ -416,7 +417,7 @@ export class App {
         // 룩이 막은 길도 경로로는 안내한다 (룩에게 안내되도록)
         // 문지기가 이 지역에 있는 길목은 경로로 안내한다 (문지기에게 가도록)
         const gateHere = !!ex?.gate && AREAS[a].mobs.some((m) => m.once === ex.gate || (ex.gate === 'towers_done' && m.enc === 'towers') || (ex.gate === 'double_dead' && m.enc === 'double'));
-        if ((!exitOpen(ex) && ex?.req !== 'rook' && !(gateHere && (!ex!.req || exitOpen({ ...ex!, gate: undefined })))) || !ex?.to || seen.has(ex.to)) continue;
+        if ((!exitOpen(ex, true) && ex?.req !== 'rook' && !(gateHere && (!ex!.req || exitOpen({ ...ex!, gate: undefined })))) || !ex?.to || seen.has(ex.to)) continue;
         seen.add(ex.to);
         prev.set(ex.to, { from: a, side: s as Side });
         queue.push(ex.to);
@@ -449,7 +450,21 @@ export class App {
     const ex = AREAS[G.area].exits[step.side];
     if (ex && !exitOpen(ex) && ex.req === 'rook') return `${g.text} @ ${AREAS[g.area].name} — 북쪽 길을 막은 룩과 먼저 이야기하자`;
     if (ex?.gate && !G.flags[ex.gate]) return `${g.text} @ ${AREAS[g.area].name} — 먼저 ${SIDE_NAME[step.side]} 길목을 막은 문지기를 쓰러뜨리자`;
+    const rb = recordBlocks(ex?.to);
+    if (rb) return `${g.text} @ ${AREAS[g.area].name} — 지역 기록 ${recordText(rb).pct}% / ${RECORD_NEED}%: 몹·의뢰·새 장비로 이 지역을 더 기록하자`;
     return `${g.text} @ ${AREAS[g.area].name} — ${SIDE_NAME[step.side]} 가장자리로 나가기${warn}`;
+  }
+
+  /** 지역 기록률 줄 (보스를 아직 안 잡은 지역만) */
+  private recordLine() {
+    const r = AREAS[G.area].region;
+    if (!showRecord(r)) return null;
+    const { pct, detail } = recordText(r);
+    const ok = pct >= RECORD_NEED;
+    return h('div', { class: 'record-line', title: `지역 기록 ${pct}% — ${detail}\n${RECORD_NEED}% 이상이면 보스에게 가는 길이 열려요. 몹 잡기 · 의뢰 끝내기 · 새 장비 얻기로 채워요.` },
+      h('span', {}, `📖 지역 기록 ${pct}%`),
+      h('span', { class: 'record-bar' }, h('i', { style: { width: `${Math.min(100, pct)}%`, background: ok ? '#e8c060' : '#8aa0c8' } }), h('b', { style: { left: `${RECORD_NEED}%` } })),
+      h('small', { class: 'muted' }, ok ? '보스 길 열림' : `${RECORD_NEED}%에 보스 길`));
   }
 
   // ---------- 이동 ----------
@@ -1128,6 +1143,7 @@ export class App {
     el.append(h('div', { class: 'card area-card' },
       h('div', { class: 'area-name' }, AREAS[G.area].name, runRule() ? h('span', { class: 'rule-chip', title: RUN_RULES[runRule()!].desc }, `🎴 ${RUN_RULES[runRule()!].name}`) : null),
       gt ? h('div', { class: 'guide-line' }, '🧭 ', gt) : h('div', { class: 'muted small' }, '판 가장자리 칸에서 바깥 화살표를 누르면 다른 지역으로 간다'),
+      this.recordLine(),
     ));
     // 메뉴: 아이콘만 (이모지와 글자를 한 상자에 같이 넣으면 둘 다 어중간하다는 베타 의견). 이름은 마우스를 올리면,
     // 모서리의 글자는 단축키 (탐험 중 키보드로 바로 열기)

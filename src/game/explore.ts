@@ -1,4 +1,5 @@
-﻿import { KING, KNIGHT, ORTH, Vec, cheb, eq, key, pick, rand, shuffle } from '../core/geom';
+﻿import { RECORD_NEED, recordBlocks, recordText } from './record';
+import { KING, KNIGHT, ORTH, Vec, cheb, eq, key, pick, rand, shuffle } from '../core/geom';
 import { Grid, MoveRule, Targets, genTargets } from '../core/rules';
 import { G, hasJob, loadout, matHave } from '../core/state';
 import { AREAS, AreaDef, AreaId, Exit, FixedMob, Mover, ObjDef, SIDE_NAME, Side, onSide, pickParty } from '../data/areas';
@@ -12,15 +13,27 @@ import { moveEnt, popIn } from '../render/anim';
 import { fx } from '../render/fx';
 import { clearCoach, coachNow, dialog, toast } from '../ui/dom';
 
-export const exitOpen = (ex: Exit | undefined): boolean => {
+export const exitOpen = (ex: Exit | undefined, ignoreRecord = false): boolean => {
   if (!ex?.to) return false;
   if (ex.req === 'promoted') return G.promoted;
   if (ex.req === 'fogkey') return matHave('fogkey') > 0 || !!G.flags.fogOpen;
   if (ex.req === 'rook') return !!G.flags.rook_gone;
   if (ex.gate && !G.flags[ex.gate]) return false;
-  if (ex.req === 'promoted2') return G.promoted2;
-  if (ex.req === 'promoted3') return !!G.flags.promoted3;
+  if (ex.req === 'promoted2' && !G.promoted2) return false;
+  if (ex.req === 'promoted3' && !G.flags.promoted3) return false;
+  // 보스 지역: 그 지역 기록률이 모자라면 닫혀 있다
+  if (!ignoreRecord && recordBlocks(ex.to)) return false;
   return true;
+};
+
+/** 닫힌 출구의 안내: 기록률 때문이면 기록률 안내 */
+export const lockedMsg = (ex: Exit): string => {
+  const r = !ex.gate || G.flags[ex.gate] ? recordBlocks(ex.to) : 0;
+  if (r) {
+    const { pct, detail } = recordText(r);
+    return `이 너머는 아직 기보에 적히지 않았다. 이 지역을 더 기록해야 길이 보인다.\n지역 기록 ${pct}% / ${RECORD_NEED}% (${detail})\n몹 잡기 · 의뢰 끝내기 · 새 장비 얻기로 채워요.`;
+  }
+  return ex.locked ?? '갈 수 없다.';
 };
 
 export interface RMob {
@@ -275,7 +288,7 @@ export class Explore {
       return;
     }
     if (!exitOpen(ex)) {
-      this.hooks.locked(ex.locked ?? '갈 수 없다.');
+      this.hooks.locked(lockedMsg(ex));
       return;
     }
     this.hooks.askTravel(ex.to!, side, async () => {
