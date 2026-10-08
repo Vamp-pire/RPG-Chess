@@ -31,7 +31,7 @@ export default async function handler(req, res) {
     fields: info ? [{ name: '게임 상태', value: '```\n' + info + '\n```' }] : [],
     timestamp: new Date().toISOString(),
   };
-  const payload = { username: '기보 밖의 한 수 · 피드백', embeds: [embed], allowed_mentions: { parse: [] } };
+  const payload = { username: 'Twist', avatar_url: 'https://ch-rpg.vercel.app/icon.png', embeds: [embed], allowed_mentions: { parse: [] } };
 
   try {
     const shot = typeof body?.shot === 'string' && body.shot.startsWith('data:image/jpeg;base64,') && body.shot.length < 2_000_000 ? body.shot : null;
