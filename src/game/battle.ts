@@ -998,6 +998,19 @@ export class Battle {
       }
       return;
     }
+    // 마지막 일격: 잠깐 멈추고 그 칸으로 확대 + 번쩍. 보스는 느린 화면과 '체크메이트!'
+    if (!noDrop && this.enemies().length === 0 && u.mob !== 'slime' && !d.split) {
+      const boss = d.ai === 'boss' || d.ai === 'queen';
+      fx.stop(boss ? 220 : 120);
+      fx.zoom(u.x + 0.5, u.y + 0.5, boss ? 0.3 : 0.16, boss ? 1300 : 650);
+      fx.flash(boss ? 0.9 : 0.45);
+      fx.shake(boss ? 12 : 6, boss ? 500 : 220);
+      if (boss) {
+        fx.slow(0.35, 1100);
+        fx.text(u.x + 0.5, u.y - 0.6, '체크메이트!', '#ffe08a', true, 1600, 0.6);
+        fx.burst(u.x + 0.5, u.y + 0.5, '#ffe08a', 36, { speed: 5, life: 1100, shape: 'spark' });
+      }
+    }
     if (u.mob && !noDrop) {
       // 숨은 엔딩 「다음 보스」의 단서: 보스를 폰답게 끝냈는가
       if (u.mob === 'strawking') bossFell('straw', this.hero.hp > 0 && this.tileAt(this.hero.x, this.hero.y) === 'throne');
@@ -1008,6 +1021,7 @@ export class Battle {
         this.hows.push({ mob: u.mob, how });
         if (u.shiny) this.shinyKills.push(u.mob);
         if (u.pre) this.preKills.push(u.mob);
+        if (u.mob === 'number' && (u.count ?? 1) >= 3) emit('number3');
         // 수 번호: 다른 몹이 쓰러질 때마다 번호·공격 +1 (최대 3.)
         for (const o of this.enemies()) if (o !== u && o.mob === 'number' && (o.count ?? 1) < 3) {
           o.count = (o.count ?? 1) + 1;

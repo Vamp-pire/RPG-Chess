@@ -58,8 +58,8 @@ export function talk(app: App, id: string) {
               addBag('moss', 2);
               addBag('tooth', 1);
               qStart('sq_smith');
-              G.flags.track = 'sq_smith';
-              toast('촌장이 이끼 돌 2개와 쥐 이빨 1개를 건넸다. 대장간에서 무기를 개조해 보자.', 'good');
+              // 첫 전투를 먼저 (첫 10분 다듬기): 안내는 들판의 몹으로, 개조는 장비를 몇 개 얻은 뒤에 해도 된다
+              toast('촌장이 이끼 돌 2개와 쥐 이빨 1개를 건넸다. 먼저 동쪽 들판에서 몹을 잡아 장비를 얻자. 개조는 대장간에서 나중에 해도 돼요.', 'good', 5000);
             }
           } },
           { label: '나중에', onPick: () => {} },
@@ -332,6 +332,22 @@ export function talk(app: App, id: string) {
         bye,
       ]);
     }
+    case 'foldknight': {
+      const s = qst('sq_smear');
+      if (s === 'done') return say('귀퉁이 나이트', 'wn', '"덕분에 내 줄이 다시 읽힌다. 한 칸 옆, 두 칸 앞. 그게 나였어."', [bye]);
+      if (s === 'locked') {
+        return say('귀퉁이 나이트', 'wn', '"페이지가 접히면서 내가 둔 수가 번져 버렸다. 어디로 뛰었는지 나도 모르겠어. 번진 잉크 셋, 붉은 잉크 둘이면 다시 덧쓸 수 있을 텐데."', [
+          { label: '가져오겠다', onPick: () => { qStart('sq_smear'); if (matHave('smear') >= 3 && matHave('redink') >= 2) q('sq_smear').st = 'ready'; } }, bye,
+        ]);
+      }
+      if (s === 'active') return say('귀퉁이 나이트', 'wn', `"번진 잉크 ${Math.min(3, matHave('smear'))}/3, 붉은 잉크 ${Math.min(2, matHave('redink'))}/2. 번진 기물과 「!!」가 갖고 있을 거다."`, [bye]);
+      return say('귀퉁이 나이트', 'wn', '"다 모았군. 어떻게 덧쓸까?"', [
+        app.alignChoice('원래 둔 수 그대로 덧쓴다', 'light', (w) => { if (!spendMats({ smear: 3, redink: 2 })) return; G.flags.foldknight = 'true'; qComplete('sq_smear', { gold: w ? 70 : 90, mats: [['page', 2]] }); }),
+        app.alignChoice('내 마음대로 새 수를 적는다', 'dark', (w) => { if (!spendMats({ smear: 3, redink: 2 })) return; G.flags.foldknight = 'new'; qComplete('sq_smear', { gold: w ? 40 : 60, mats: [['quill', 1]] }); }),
+        neutralChoice('여백에 두 수를 나란히 적는다', () => { if (!spendMats({ smear: 3, redink: 2 })) return; G.flags.foldknight = 'both'; qComplete('sq_smear', { gold: 60, mats: [['page', 1], ['ink', 2]] }); }),
+        { label: '나중에', onPick: () => {} },
+      ]);
+    }
     case 'scribe2': {
       // 직업마다 한 번씩 주는 선물
       const gift = JOB_GIFTS[G.job ?? 'wanderer'];
@@ -346,6 +362,31 @@ export function talk(app: App, id: string) {
           } },
         ]);
       }
+      // 여백의 도감 → 세 번째 수 (차례로)
+      const dx = qst('sq_inkdex');
+      const nb = qst('sq_numbers');
+      if (dx === 'ready') {
+        return say('여백의 기록자', 'wq', '"다섯 가지나 봤군. 이걸로 여백 한 장이 채워졌다. 기보에 다 적지 못한 것들도 누군가는 적어 둬야지."', [
+          { label: '받는다', onPick: () => qComplete('sq_inkdex', { gold: 80, mats: [['page', 2], ['ink', 2]] }) },
+        ]);
+      }
+      if (dx === 'locked') {
+        return say('여백의 기록자', 'wq', '"이 땅의 것들은 아직 이름도 제대로 없다. 다섯 가지만 만나고 와 다오. 쓰러뜨리면 내가 적어 두지."', [
+          { label: '적어 두게 해 주겠다', onPick: () => qStart('sq_inkdex') }, bye,
+        ]);
+      }
+      if (dx === 'active') return say('여백의 기록자', 'wq', `"지금까지 ${q('sq_inkdex').n}가지. 잉크 샘 쪽엔 「!!」와 책벌레가, 접힌 페이지엔 번진 기물과 수 번호가 있다."`, [bye]);
+      if (nb === 'ready') {
+        return say('여백의 기록자', 'wq', '"「3.」을 지웠다고? 그 줄은 늘 기보에서 가장 늦게까지 남던 줄이었다. 이 깃펜은 그 값이다."', [
+          { label: '받는다', onPick: () => qComplete('sq_numbers', { gold: 100, mats: [['quill', 1], ['numeral', 2]] }) },
+        ]);
+      }
+      if (nb === 'locked') {
+        return say('여백의 기록자', 'wq', '"수 번호는 곁의 것들이 쓰러질 때마다 하나씩 커진다. 「3.」까지 커진 놈을 지울 수 있겠나? 일부러 키워야 하니 쉽진 않을 거다."', [
+          { label: '해 보겠다', onPick: () => qStart('sq_numbers') }, bye,
+        ]);
+      }
+      if (nb === 'active') return say('여백의 기록자', 'wq', '"수 번호를 먼저 치지 말고 곁의 것들부터 쓰러뜨려 봐. 「3.」이 되면 그때 지우는 거다."', [bye]);
       const lines = !G.flags.author_dead
         ? rewriteHint()
         : '"마지막 줄은 적혔다. 다시 써 보고 싶으면 기록의 벽에서 처음으로 돌아가는 방법도 있지. 다른 길로 걸으면 다른 끝이 나온다는 얘기도 있고."';

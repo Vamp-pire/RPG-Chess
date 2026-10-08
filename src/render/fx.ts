@@ -20,6 +20,17 @@ class FX {
   shakeT = 0;
   shakeMag = 0;
   hitstop = 0;
+  /** 느린 화면: 남은 시간(실제 ms)과 속도 배율 */
+  slowT = 0;
+  slowMul = 1;
+  /** 확대: 타일 좌표 중심, 최대 배율, 남은/전체 시간 */
+  zoomX = 0;
+  zoomY = 0;
+  zoomAmt = 0;
+  zoomT = 0;
+  zoomDur = 1;
+  /** 흰 번쩍임 세기 (0~1) */
+  flashA = 0;
   time = 0;
   /** 내 차례가 시작된 시각 (판 테두리 반짝) */
   turnAt = -9999;
@@ -50,6 +61,36 @@ class FX {
     this.hitstop = Math.max(this.hitstop, ms);
   }
 
+  /** 잠깐 느리게 (mul = 속도 배율, 0.35면 세 배쯤 느리게) */
+  slow(mul: number, ms: number) {
+    if (this.instant || this.skip) return;
+    this.slowMul = mul;
+    this.slowT = Math.max(this.slowT, ms);
+  }
+
+  /** 한 칸을 향해 살짝 확대했다가 돌아온다 (x, y = 타일 좌표 중심) */
+  zoom(x: number, y: number, amt: number, ms: number) {
+    if (this.instant || this.skip) return;
+    this.zoomX = x;
+    this.zoomY = y;
+    this.zoomAmt = amt;
+    this.zoomT = ms;
+    this.zoomDur = ms;
+  }
+
+  /** 지금 확대 배율 (1 = 그대로): 빠르게 들어갔다가 천천히 빠진다 */
+  zoomNow(): number {
+    if (this.zoomT <= 0) return 1;
+    const p = 1 - this.zoomT / this.zoomDur;
+    const k = p < 0.2 ? p / 0.2 : 1 - (p - 0.2) / 0.8;
+    return 1 + this.zoomAmt * easeOut(Math.max(0, k));
+  }
+
+  flash(a: number) {
+    if (this.instant || this.skip) return;
+    this.flashA = Math.max(this.flashA, a);
+  }
+
   /** x,y: 타일 좌표(중심) */
   burst(x: number, y: number, color: string, n = 10, o: { speed?: number; grav?: number; size?: number; shape?: Particle['shape']; life?: number } = {}) {
     for (let i = 0; i < n; i++) {
@@ -76,6 +117,12 @@ class FX {
       this.hitstop -= dt;
       tdt = 0;
     }
+    if (this.slowT > 0) {
+      this.slowT -= dt;
+      tdt *= this.slowMul;
+    }
+    if (this.zoomT > 0) this.zoomT -= dt;
+    if (this.flashA > 0) this.flashA = Math.max(0, this.flashA - dt / 350);
     const finished: Tween[] = [];
     for (const t of this.tweens) {
       t.el += tdt;
@@ -111,6 +158,9 @@ class FX {
   }
 
   clear() {
+    this.slowT = 0;
+    this.zoomT = 0;
+    this.flashA = 0;
     for (const t of this.tweens) { t.fn(1); t.done(); }
     this.tweens = [];
     this.parts = [];

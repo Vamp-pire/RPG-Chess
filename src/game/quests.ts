@@ -44,6 +44,9 @@ export const QUESTS: Record<string, QuestDef> = {
   sq_witch: { name: '마녀의 솥', desc: '안개 거미줄 3개와 망령 정수 2개를 늪의 마녀에게 가져가자.' },
   sq_ghost: { name: '망령 기사의 한', desc: '성채의 뼈 군주를 쓰러뜨리고 망령 기사에게 돌아가자.' },
   sq_puzzle2: { name: '금 간 돌판', desc: '성채의 돌판 퍼즐을 풀자.' },
+  sq_inkdex: { name: '여백의 도감', desc: '기보의 땅(여백·접힌 페이지·잉크 샘)의 몹 5종을 쓰러뜨리고 여백의 기록자에게 돌아가자.', target: 5 },
+  sq_numbers: { name: '세 번째 수', desc: '「3.」까지 번호가 커진 수 번호를 쓰러뜨리자. 같은 판의 다른 몹이 쓰러질 때마다 번호가 커진다.', target: 1 },
+  sq_smear: { name: '번진 기보', desc: '번진 잉크 3개와 붉은 잉크 2개를 접힌 페이지의 귀퉁이 나이트에게 가져가자.' },
   sq_secret: { name: '안개 낀 북쪽', secret: true, desc: '안개 열쇠가 가리키는 곳: 마을 북쪽 가장자리 너머.' },
   rc_soldier: { name: '폰 병사의 첫 수', recruit: true, desc: '폰 병사와 함께 시험 전투를 치르자. (마을 폰 병사에게 말 걸기)' },
   rc_ghost: { name: '망령 기사의 맹세', recruit: true, desc: '망령 기사와 함께 시험 전투를 치르자. (성채 망령 기사에게 말 걸기)' },
@@ -107,6 +110,7 @@ export function progressText(id: string) {
 }
 
 const R2_DEX: MobId[] = ['toad', 'spider', 'skeleton', 'wraith'];
+const R4_DEX: MobId[] = ['inkblot', 'erased', 'bookworm', 'annot', 'smudge', 'number', 'brilliant'];
 /** 대장간에서 개조한 횟수 (옛 저장은 만든 횟수에서 이어서 센다) */
 export const craftCount = () => Number(G.flags.crafts ?? 0);
 
@@ -138,6 +142,11 @@ export function initQuestHooks() {
       s2.n = R2_DEX.filter((m) => killedNow(m)).length;
       if (s2.n >= 4) qReady('sq_dex2');
     }
+    const s4 = q('sq_inkdex');
+    if (s4.st === 'active') {
+      s4.n = Math.min(5, R4_DEX.filter((m) => killedNow(m)).length);
+      if (s4.n >= 5) qReady('sq_inkdex');
+    }
   });
   // 동료 개인 퀘스트: 조건을 채우면 곧바로 완료 (동료는 파티에 있어 따로 말을 걸 곳이 없다)
   const companionDone = (id: string, c: string, name: string) => {
@@ -160,6 +169,11 @@ export function initQuestHooks() {
       if (s.n >= 4) qReady('sq_wolves');
     }
   });
+  // 「3.」까지 커진 수 번호를 쓰러뜨렸다 (battle.ts가 알린다)
+  on('number3', () => {
+    const s = q('sq_numbers');
+    if (s.st === 'active') { s.n = 1; qReady('sq_numbers'); }
+  });
   on('rest', () => {
     const s = q('cq_priest');
     if (s.st === 'active' && G.party.includes('priest')) {
@@ -174,6 +188,7 @@ export function initQuestHooks() {
   on('gain', () => {
     const s = q('sq_witch');
     if (s.st === 'active' && matHave('silk') >= 3 && matHave('ecto') >= 2) qReady('sq_witch');
+    if (qst('sq_smear') === 'active' && matHave('smear') >= 3 && matHave('redink') >= 2) qReady('sq_smear');
   });
 }
 
@@ -210,6 +225,9 @@ const REWARD_HINT: Record<string, { gold?: number; text?: string }> = {
   sq_witch: { text: '거울 파편 (선택에 따라)' },
   sq_ghost: { text: '선택에 따라 (동료가 될 수도)' },
   sq_wolves: { gold: 60, text: '털·얼음' },
+  sq_inkdex: { gold: 80, text: '찢긴 페이지·잉크' },
+  sq_numbers: { gold: 100, text: '깃펜' },
+  sq_smear: { gold: 90, text: '선택에 따라' },
   sq_hermit: { text: '선택에 따라' },
   sq_pawn: { text: '동료' },
   rc_soldier: { text: '동료 합류' },
@@ -267,6 +285,9 @@ export function guideFor(id: string): GuideTarget | null {
       return next ? { area: next[1], obj: next[0], pos: next[2], text: next[3] } : null;
     }
     case 'sq_witch': return st === 'ready' ? T('camp', 'witch', '마녀에게 재료 전달') : null;
+    case 'sq_inkdex': return st === 'ready' ? T('margin', 'scribe2', '여백의 기록자에게 보고') : { area: 'fold', text: '기보의 땅 몹 5종' };
+    case 'sq_numbers': return st === 'ready' ? T('margin', 'scribe2', '여백의 기록자에게 보고') : { area: 'fold', text: '「3.」이 된 수 번호' };
+    case 'sq_smear': return st === 'ready' ? T('fold', 'foldknight', '귀퉁이 나이트에게 잉크 전달') : { area: 'fold', text: '번진 기물(번진 잉크)·「!!」(붉은 잉크)' };
     case 'sq_ghost': return G.flags.bonelord_dead ? T('ruins', 'ghostknight', '망령 기사에게 보고') : { area: 'ruins', pos: [4, 1], text: '뼈 군주' };
     case 'sq_puzzle2': return T('ruins', 'puzzle2', '금 간 돌판');
     case 'sq_secret': return { area: 'town', pos: [3, 0], text: '북쪽으로 나가기' };

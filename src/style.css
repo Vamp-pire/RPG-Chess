@@ -952,3 +952,15 @@ button.qline.tracked { background: #2b2213; }
 .record-bar { position: relative; flex: 1; height: 7px; border-radius: 4px; background: rgba(255,255,255,0.1); overflow: visible; }
 .record-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; transition: width 0.4s; }
 .record-bar b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #f0e0b0; opacity: 0.8; }
+
+/* 피드백 */
+.feedback { display: flex; flex-direction: column; gap: 8px; }
+.fb-cats { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-btn { border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.05); color: inherit; border-radius: 999px; padding: 4px 12px; cursor: pointer; font: inherit; font-size: 13px; }
+.chip-btn.on { background: #e8c060; color: #1c160c; border-color: #e8c060; font-weight: 700; }
+.fb-text { width: 100%; box-sizing: border-box; min-height: 120px; resize: vertical; background: rgba(0,0,0,0.3); color: inherit; border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 14px; line-height: 1.5; }
+.fb-opt { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+
+/* 보스 기록 */
+.boss-recs { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.boss-rec { display: grid; grid-template-columns: minmax(0, 1.4fr) 1fr 1fr 1fr; gap: 8px; padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 13px; }

@@ -357,7 +357,7 @@ export const AREAS: Record<AreaId, AreaDef> = {
     id: 'fold', name: '접힌 페이지', biome: 'fold', region: 4,
     walls: [[3, 0], [3, 1], [3, 2], [4, 5], [4, 6], [4, 7]],
     exits: { w: { to: 'margin' }, s: { to: 'lastpage', gate: 'double_dead', locked: '마지막 장으로 가는 페이지가 겹쳐 붙어 있다. 겹수를 쓰러뜨려 떼어 내자.' } },
-    objs: [o('chest_f', 'chest', 7, 0, '접힌 상자', 'o:chest')],
+    objs: [o('chest_f', 'chest', 7, 0, '접힌 상자', 'o:chest'), o('foldknight', 'npc', 1, 5, '귀퉁이 나이트', 'p:wn', false)],
     mobs: [{ id: 'double', x: 6, y: 3, sprite: 'double', enc: 'double', mover: 'none' }],
     random: {
       n: 3,

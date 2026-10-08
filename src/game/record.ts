@@ -23,7 +23,7 @@ const QUESTS: Record<number, string[]> = {
   1: ['sq_sheep', 'sq_rook', 'sq_shrine', 'sq_puzzle', 'sq_merchant', 'sq_dex', 'sq_smith'],
   2: ['sq_scout', 'sq_witch', 'sq_ghost', 'sq_puzzle2', 'sq_dex2'],
   3: ['sq_wolves', 'sq_puzzle3', 'sq_hermit'],
-  4: [],
+  4: ['sq_inkdex', 'sq_numbers', 'sq_smear'],
 };
 
 const regionMobs = (r: number): MobId[] => {
@@ -52,6 +52,24 @@ export function regionRecord(r: number): { pct: number; parts: RecordPart[] } {
   const wsum = parts.reduce((s, p) => s + p.weight, 0) || 1;
   const pct = Math.round(parts.reduce((s, p) => s + (p.have / p.total) * p.weight, 0) / wsum * 100);
   return { pct, parts };
+}
+
+/** 보스 처치 기록: 최단 턴 · 노피격 · 이긴 횟수 (보스마다 하나) */
+export interface BossRec { best: number; nohit: boolean; wins: number; t: number }
+export const bossRecs = (): [string, BossRec][] =>
+  Object.keys(G.flags).filter((k) => k.startsWith('brec_')).map((k) => [k.slice(5), JSON.parse(String(G.flags[k])) as BossRec]);
+
+/** 보스를 이겼다: 기록을 남기고 새로 세운 기록을 알려 줄 글 (없으면 빈 글) */
+export function noteBossWin(name: string, turns: number, dmg: number): string {
+  const k = `brec_${name}`;
+  const old = G.flags[k] ? (JSON.parse(String(G.flags[k])) as BossRec) : null;
+  const rec: BossRec = { best: old ? Math.min(old.best, turns) : turns, nohit: (old?.nohit ?? false) || dmg === 0, wins: (old?.wins ?? 0) + 1, t: Date.now() };
+  G.flags[k] = JSON.stringify(rec);
+  const bits: string[] = [];
+  if (!old) bits.push(`첫 처치 ${turns}턴`);
+  else if (turns < old.best) bits.push(`최단 기록 갱신! ${turns}턴 (전 ${old.best}턴)`);
+  if (dmg === 0 && !old?.nohit) bits.push('노피격 처치!');
+  return bits.join(' · ');
 }
 
 /** 이 출구가 보스 지역으로 가는데 기록률이 모자라면 그 지역 번호 (아니면 0) */

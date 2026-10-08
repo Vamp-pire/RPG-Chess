@@ -13,8 +13,11 @@ import { pieceSrc } from '../render/sprites';
 import { clearCoach, h, modal, patternGrid } from './dom';
 import { matIcon, statsView } from './forge';
 import { BASE_LIST, FAM_NAME } from '../data/gear';
+import { bossRecs } from '../game/record';
 
-const MOB_ORDER: MobId[] = ['slime', 'rat', 'bat', 'golem', 'thorn', 'hound', 'strawking', 'toad', 'spider', 'skeleton', 'wraith', 'bonelord', 'misqueen', 'blunder'];
+/** 도감 순서: 데이터 순서(지역별). 딸려 나오는 작은 몹은 뺀다 (예전엔 2지역까지만 적혀 있어 3·4지역·새 몹이 도감에 없었다) */
+const MINIONS = ['slimelet', 'strawpawn', 'echo', 'inkdrop'];
+const MOB_ORDER: MobId[] = (Object.keys(MOBS) as MobId[]).filter((m) => !MINIONS.includes(m));
 
 /** 몹 그림: Canva 그림이 있으면 그것, 없으면 이름 첫 글자 */
 function mobPic(m: MobId, known: boolean) {
@@ -40,7 +43,7 @@ export function openCodex(tab: 'mob' | 'mat' | 'gear' | 'recipe' | 'replay' = 'm
   const render = () => {
     root.innerHTML = '';
     const tabs = h('div', { class: 'tabs' });
-    for (const [k, label] of [['mob', '몹'], ['mat', '재료'], ['gear', '장비 비교'], ['recipe', '장비 도감'], ['replay', '보스전 기보']] as const) {
+    for (const [k, label] of [['mob', '몹'], ['mat', '재료'], ['gear', '장비 비교'], ['recipe', '장비 도감'], ['replay', '보스 기록']] as const) {
       const b = h('button', { class: `tab ${cur === k ? 'on' : ''}` }, label);
       b.addEventListener('click', () => { cur = k; render(); });
       tabs.append(b);
@@ -58,6 +61,15 @@ export function openCodex(tab: 'mob' | 'mat' | 'gear' | 'recipe' | 'replay' = 'm
 /** 보스전 다시 보기: 이긴 보스전의 턴별 판을 넘겨 본다 */
 interface Replay { name: string; w: number; h: number; t: number; frames: { note: string; tiles: string; units: [string, number, number, number][] }[] }
 function renderReplays(root: HTMLElement) {
+  // 보스 처치 기록: 최단 턴 · 노피격 · 이긴 횟수
+  const recs = bossRecs();
+  if (recs.length) {
+    root.append(h('div', { class: 'boss-recs' }, ...recs.map(([name, r]) => h('div', { class: 'boss-rec' },
+      h('b', {}, name),
+      h('span', {}, `최단 ${r.best}턴`),
+      h('span', { class: r.nohit ? 'gold' : 'muted' }, r.nohit ? '✨ 노피격' : '노피격 아직'),
+      h('span', { class: 'muted' }, `${r.wins}번 이김`)))));
+  }
   const reps = Object.keys(G.flags).filter((k) => k.startsWith('replay_')).map((k) => JSON.parse(String(G.flags[k])) as Replay);
   if (!reps.length) {
     root.append(h('p', { class: 'muted' }, '보스를 이기면 그 전투의 수순이 여기에 기보로 남는다.'));
@@ -134,22 +146,42 @@ function renderMobs(root: HTMLElement) {
     const d = MOBS[m];
     const kills = G.dex[m] ?? 0;
     const seen = kills > 0 || !!G.flags[`seen_${m}`];
-    if (!seen && (m === 'blunder' || (d.region ?? 1) >= 3)) continue; // 비밀 몹·뒤 지역 몹은 만나기 전까지 목록에도 없다
-    const card = h('div', { class: `cx-card ${kills ? '' : 'dim'}` }, mobPic(m, seen));
-    if (!seen) {
-      card.append(h('div', {}, h('b', {}, '???'), h('p', { class: 'small muted' }, '아직 만나지 못했다.')));
-    } else {
-      const drops = d.drops.map(([id, n]) => `${MATS[id].name}×${n}`).join(', ');
-      card.append(h('div', { class: 'cx-body' },
-        h('b', {}, d.name, h('span', { class: 'muted small' }, `  HP ${d.hp} · 공격 ${d.atk} · 처치 ${kills}`)),
-        h('p', { class: 'small' }, d.desc),
-        kills ? h('p', { class: 'small muted' }, `드롭: ${drops || '없음'}${d.rare ? ` · 드물게 ${MATS[d.rare[0]].name}` : ''}`) : h('p', { class: 'small muted' }, '쓰러뜨리면 드롭 정보를 알 수 있다.'),
-        loreBox(m, kills),
-      ), mobGrid(m));
-    }
-    list.append(card);
+    if (!seen && (m === 'blunder' || m === 'rabbit' || (d.region ?? 1) >= 3)) continue; // 비밀 몹·뒤 지역 몹은 만나기 전까지 목록에도 없다
+    list.append(mobCard(m));
   }
   root.append(list);
+}
+
+/** 몹 카드: 그림 · 체력/공격 · 설명 · 재료 · 떨어뜨리는 장비 · 행마 격자 · 이야기. extra = 지금 판 위 상태 */
+export function mobCard(m: MobId, extra = ''): HTMLElement {
+  const d = MOBS[m];
+  const kills = G.dex[m] ?? 0;
+  const seen = kills > 0 || !!G.flags[`seen_${m}`];
+  const card = h('div', { class: `cx-card ${kills ? '' : 'dim'}` }, mobPic(m, seen));
+  if (!seen && !extra) {
+    card.append(h('div', {}, h('b', {}, '???'), h('p', { class: 'small muted' }, '아직 만나지 못했다.')));
+    return card;
+  }
+  const drops = d.drops.map(([id, n]) => `${MATS[id].name}×${n}`).join(', ');
+  // 이 몹이 떨어뜨리는 장비: 손에 넣어 본 것만 이름이 보인다
+  const gear = BASE_LIST.filter((b) => (b.from as string[]).includes(m) && !b.draft);
+  const gearLine = gear.length
+    ? h('p', { class: 'small muted' }, `장비: ${gear.map((b) => (G.flags[`seen_${b.id}`] ? `${b.name}${b.elite ? '(엘리트)' : ''}` : '???')).join(', ')}`)
+    : null;
+  card.append(h('div', { class: 'cx-body' },
+    h('b', {}, d.name, h('span', { class: 'muted small' }, `  HP ${d.hp} · 공격 ${d.atk} · 처치 ${kills}`)),
+    extra ? h('p', { class: 'small gold' }, extra) : null,
+    h('p', { class: 'small' }, d.desc),
+    kills ? h('p', { class: 'small muted' }, `재료: ${drops || '없음'}${d.rare ? ` · 드물게 ${MATS[d.rare[0]].name}` : ''}`) : h('p', { class: 'small muted' }, '쓰러뜨리면 재료 정보를 알 수 있다.'),
+    gearLine,
+    loreBox(m, kills),
+  ), mobGrid(m));
+  return card;
+}
+
+/** 판 위의 몹을 오른쪽 클릭(길게 누르기) → 정보 카드 */
+export function openMobCard(m: MobId, extra = '') {
+  modal(MOBS[m].name, h('div', { class: 'cx-list mob-info' }, mobCard(m, extra), h('p', { class: 'muted small' }, '초록 = 이동할 수 있는 칸, 빨강 = 공격이 닿는 칸. 도감(C)에서 다른 몹도 볼 수 있어요.')), { wide: true });
 }
 
 function renderMats(root: HTMLElement) {

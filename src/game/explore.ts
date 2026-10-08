@@ -128,6 +128,18 @@ export class Explore {
         this.mobs.push({ rid: `m${RID++}`, x, y, sprite: t.sprite, party: pickParty(t), mover: t.mover, ent: mkEnt(`r${RID}`, `m:${t.sprite}`, x, y, { bob: true }) });
       }
     }
+    // 첫 전투를 빨리: 아직 한 번도 싸우지 않았으면 들판 입구 가까이에 혼자 있는 슬라임 하나 (첫 10분 다듬기)
+    if (a.id === 'meadow' && G.battles === 0 && G.job && !this.mobs.some((m) => cheb([m.x, m.y], G.pos) <= 3)) {
+      const near: Vec[] = [];
+      for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+        const d = cheb([x, y], G.pos);
+        if (d >= 2 && d <= 3 && !this.blockedTile(x, y) && !this.objAt(x, y) && !this.mobAt(x, y)) near.push([x, y]);
+      }
+      if (near.length) {
+        const [x, y] = pick(near);
+        this.mobs.push({ rid: `m${RID++}`, x, y, sprite: 'slime', party: ['slime'], mover: 'none', ent: mkEnt(`r${RID}`, 'm:slime', x, y, { bob: true }) });
+      }
+    }
     // 눈토끼: 설원 탐험판에 아주 가끔 (잡기 아주 어렵다 — 사용자 결정)
     if ((a.id === 'tundra' || a.id === 'glacier') && Math.random() < 0.12) {
       const far: Vec[] = [];

@@ -146,6 +146,15 @@ export class Renderer {
     ctx.save();
     const [sx, sy] = fx.shakeOffset();
     ctx.translate(sx, sy);
+    // 마지막 일격 확대
+    const z = fx.zoomNow();
+    if (z !== 1) {
+      const zx = this.ox + fx.zoomX * ts;
+      const zy = this.oy + fx.zoomY * ts;
+      ctx.translate(zx, zy);
+      ctx.scale(z, z);
+      ctx.translate(-zx, -zy);
+    }
 
     // 판 테두리
     ctx.fillStyle = '#0c0b09';
@@ -321,6 +330,10 @@ export class Renderer {
       }
     }
     ctx.restore();
+    if (fx.flashA > 0) {
+      ctx.fillStyle = `rgba(255,248,230,${fx.flashA * 0.55})`;
+      ctx.fillRect(0, 0, this.cw, this.ch);
+    }
   }
 
   /** 자동 이동 미리 보기: 실제로 걸어갈 경로(흰 점선)와 걸음 수 */

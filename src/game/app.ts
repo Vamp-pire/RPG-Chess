@@ -23,7 +23,7 @@ import { Renderer, Scene } from '../render/board';
 import { fx } from '../render/fx';
 import { pieceSrc, portraitUrl } from '../render/sprites';
 import { Choice, clearCoach, coach, cutin, dialog, h, modal, modalOpen, patternGrid, setDialogHero, toast, helpFold } from '../ui/dom';
-import { openCodex } from '../ui/codex';
+import { openCodex, openMobCard } from '../ui/codex';
 import { deltaChip, gearIcon, matIcon, newSquares, openForge, invGrid } from '../ui/forge';
 import { openDifficulty, openHelp, openMap, openSettings } from '../ui/extra';
 import { prefs } from '../core/prefs';
@@ -31,7 +31,8 @@ import { PUZZLES, openBoard, openInn, openInventory, openJobSelect, openPuzzle, 
 import { initAchievements, openAchievements, syncAchievements } from './achievements';
 import { Battle, BattleResult } from './battle';
 import { Explore, RMob, RObj, exitOpen } from './explore';
-import { RECORD_NEED, recordBlocks, recordText, showRecord } from './record';
+import { RECORD_NEED, noteBossWin, recordBlocks, recordText, showRecord } from './record';
+import { openFeedback } from '../ui/feedback';
 import { talk } from './npcs';
 import { eggGold, eggKey, eggLose, eggShopOpen, eggTime, eggWall } from './eggs';
 import { inTower, startTower, towerBest, towerFell, towerRegion, towerUnlocked } from './tower';
@@ -73,6 +74,21 @@ export class App {
       const [x, y] = this.renderer.pick(e)!;
       if (this.mode === 'explore') this.explore.click(x, y);
       else if (this.mode === 'battle') this.battle?.click(x, y);
+    });
+    // 몹을 오른쪽 클릭(터치는 길게 누르기) → 정보 카드
+    canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (modalOpen() || this.entering || !G) return;
+      const c = this.renderer.pick(e);
+      if (!c) return;
+      const [x, y] = c;
+      if (this.mode === 'explore') {
+        const m = this.explore.mobAt(x, y);
+        if (m) openMobCard(m.sprite, m.party && m.party.length > 1 ? `함께 다님: ${m.party.map((p) => MOBS[p].name).join(' · ')}` : '');
+      } else if (this.mode === 'battle' && this.battle) {
+        const u = this.battle.unitAt(x, y);
+        if (u?.mob) openMobCard(u.mob, `지금 HP ${u.hp}/${u.maxHp} · 공격 ${u.atk}`);
+      }
     });
     window.addEventListener('keydown', (e) => this.onKey(e));
     // 설정의 '힌트 다시 보기'
@@ -207,7 +223,9 @@ export class App {
     hb.addEventListener('click', () => openHelp());
     const sb = h('button', { class: 'btn big ghost' }, '설정');
     sb.addEventListener('click', () => openSettings(() => {}));
-    btns.append(hb, sb);
+    const fbb = h('button', { class: 'btn big ghost' }, '💬 피드백');
+    fbb.addEventListener('click', () => openFeedback());
+    btns.append(hb, sb, fbb);
     box.append(slots, btns, titleFooter());
     document.getElementById('overlay')!.append(box);
   }
@@ -263,7 +281,7 @@ export class App {
     save();
     if (fresh) {
       if (!fx.instant) await chapterStart(1);
-      dialog('프롤로그', '눈을 떠 보니 처음 보는 마을 광장이다. 다른 말들은 다 정해진 순서대로만 움직인다. 한 칸 가고, 서고, 또 한 칸. 그런데 나는 아무 데로나 움직일 수 있다. 광장 위쪽에 있는 [기록의 벽]이 희미하게 빛나고 있다.', [
+      dialog('프롤로그', '눈을 떠 보니 처음 보는 마을 광장이다. 다른 말들은 정해진 순서대로만 움직이는데, 나는 아무 데로나 갈 수 있다. 광장 위쪽 [기록의 벽]이 희미하게 빛난다.', [
         { label: '기록의 벽으로 가 본다', onPick: () => this.tip('move', '점이 찍힌 칸이 갈 수 있는 곳이에요. 먼 칸을 눌러도 금빛 화살표를 따라 알아서 걸어가요. 금빛 별이 다음 목적지예요.', { act: '손가락이 가리키는 칸을 눌러 한 걸음 걸어 보세요' }) },
       ], { self: true, speaker: PIECES[G.piece].name });
     }
@@ -371,7 +389,8 @@ export class App {
       case 'puzzle3': return s('sq_puzzle3') === 'done' ? '' : '!';
       case 'logbook': return G.flags.logbook ? '' : '!';
       case 'hermit': return (qst('main_promo3') === 'active' && matHave('kcrown') > 0) || s('sq_hermit') === 'ready' ? '?' : s('sq_hermit') === 'locked' ? '!' : '';
-      case 'scribe2': return G.job && !G.flags.jobGift ? '!' : '';
+      case 'scribe2': return (G.job && !G.flags.jobGift) || s('sq_inkdex') === 'ready' || s('sq_numbers') === 'ready' ? (s('sq_inkdex') === 'ready' || s('sq_numbers') === 'ready' ? '?' : '!') : s('sq_inkdex') === 'locked' || (s('sq_inkdex') === 'done' && s('sq_numbers') === 'locked') ? '!' : '';
+      case 'foldknight': return s('sq_smear') === 'ready' ? '?' : s('sq_smear') === 'locked' ? '!' : '';
     }
     return '';
   }
@@ -453,6 +472,20 @@ export class App {
     const rb = recordBlocks(ex?.to);
     if (rb) return `${g.text} @ ${AREAS[g.area].name} — 지역 기록 ${recordText(rb).pct}% / ${RECORD_NEED}%: 몹·의뢰·새 장비로 이 지역을 더 기록하자`;
     return `${g.text} @ ${AREAS[g.area].name} — ${SIDE_NAME[step.side]} 가장자리로 나가기${warn}`;
+  }
+
+  /** 피드백에 붙일 게임 상태 요약 (이름·계정 같은 건 넣지 않는다) */
+  feedbackInfo(): string {
+    if (!G) return '';
+    const r = AREAS[G.area].region;
+    const jd = jobDef(G.job);
+    const gear = SLOTS.map((s) => equipped(s)).filter((x): x is Item => !!x).map((x) => itemStats(x).name).join(', ');
+    const lines = [
+      `${AREAS[G.area].name} (${r}지역) · 난이도 ${DIFFS[G.diff].name} · ${PIECES[G.piece].name}${jd ? ` / ${jd.name}` : ''} · HP ${G.hp}/${maxHp()} · ${G.gold}G · 전투 ${G.battles}회${showRecord(r) ? ` · 지역 기록 ${recordText(r).pct}%` : ''}`,
+      `장비: ${gear || '없음'}`,
+    ];
+    if (this.mode === 'battle' && this.battle) lines.push(`전투 중: ${this.battle.enc.name} · ${this.battle.turn}턴`);
+    return lines.join('\n');
   }
 
   /** 지역 기록률 줄 (보스를 아직 안 잡은 지역만) */
@@ -719,6 +752,11 @@ export class App {
     }
     // 사제 용사: 이길 때마다 체력 1 회복
     if (G.flags.branch === 'priest' && G.hp < maxHp()) G.hp = Math.min(maxHp(), G.hp + HP_MUL);
+    // 보스 기록 (최단 턴 · 노피격)
+    if (b && enc && (enc.boss || enc.awake) && !inTower()) {
+      const rec = noteBossWin(enc.name, b.turn, b.dmgTaken);
+      if (rec) setTimeout(() => toast(`🏆 ${enc.name} — ${rec}`, 'rare', 4500), fx.instant ? 0 : 1200);
+    }
     emit('battleWin', { boss: !!enc?.boss, dmg: b?.dmgTaken ?? 0, turns: b?.turn ?? 0, enc: enc?.name, hows: b?.hows ?? [], acts: b?.acts, hp: G.hp, will: !!b?.willFired, kills, awake: !!enc?.awake });
     let bossText = '';
     if (enc === FIXED_ENCS.boss) {
@@ -1164,6 +1202,7 @@ export class App {
       menu('🏆', '업적', 'A', () => openAchievements(), '업적과 보상'),
       menu('❓', '도움말', 'H', () => openHelp(), '규칙과 조작'),
       menu('⚙️', '설정', 'O', () => openSettings(() => this.refreshAll(), true), '안내 · 소리 · 음악 · 글자 크기 · 세이브 코드'),
+      menu('💬', '피드백', 'F', () => openFeedback(() => this.feedbackInfo()), '버그 · 밸런스 · 제안 · 무엇이든 제작자에게 보내기'),
     ));
     el.append(h('div', { class: 'card' },
       h('div', { class: 'row gap' }, h('img', { class: 'portrait', src: pieceSrc(p.img), alt: '' }), h('div', {},
