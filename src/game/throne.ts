@@ -38,7 +38,7 @@ export function bossFell(id: TraceId, pawnlike: boolean) {
   if (!pawnlike) {
     if (!G.flags[`traceHint_${id}`]) {
       G.flags[`traceHint_${id}`] = true;
-      toast(TRACES[id].hint, 'info', 7000);
+      toast(TRACES[id].hint, 'info');
       log(TRACES[id].hint);
     }
     return;
@@ -46,8 +46,7 @@ export function bossFell(id: TraceId, pawnlike: boolean) {
   G.flags[`trace_${id}`] = true;
   const n = traceCount();
   const next = n < 3 ? ' 다른 왕들도 처음엔 폰이었을까? 그들도 폰답게 끝내 주자.' : ' 셋 모두 폰이었다. 마을의 가장 늙은 말이라면 무언가 알고 있을지도.';
-  toast(`♟ 폰의 흔적 (${n}/3) — ${TRACES[id].found}${next}`, 'rare', 7000);
-  log(`♟ 폰의 흔적 (${n}/3)`);
+  toast(`♟ 폰의 흔적 (${n}/3) — ${TRACES[id].found}${next}`, 'rare');
   emit('trace', traceCount());
   save();
 }

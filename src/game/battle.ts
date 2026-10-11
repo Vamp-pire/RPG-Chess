@@ -1112,7 +1112,7 @@ export class Battle {
     const b = this.boss();
     if (b && this.phase === 1 && b.hp <= Math.floor(b.maxHp / 2)) {
       this.phase = 2;
-      toast('2단계: 보스가 멀리서 맞으면 곧바로 다가서고(응수), 빗나가면 두 칸까지 따라붙어요.', 'info', 4500);
+      toast('2단계: 보스가 멀리서 맞으면 곧바로 다가서고(응수), 빗나가면 두 칸까지 따라붙어요.', 'info');
       if (b.mob === 'strawking') {
         this.bossNote = '옥좌로 물러나 밀짚 폰을 방패로 삼고, 곁에 붙은 폰을 흡수해 체력을 되찾는다. 폰부터 치우자!';
         await cutin('밀짚왕이 분노한다', '옥좌로 물러나 밀짚 폰을 방패로 삼고, 곁에 붙은 폰을 흡수해 체력을 되찾는다. 폰부터 치우자!', 'phase');

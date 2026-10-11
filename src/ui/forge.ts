@@ -330,7 +330,7 @@ export function openForge(onChange: () => void, opts: { craftOnly?: boolean } = 
       }
       const ns = itemStats(it);
       log(`🔨 ${ns.name} 강화 (품질 ${q0}% → ${it.q}%)`);
-      if (qTier(it.q ?? 0) > qTier(q0)) toast(`품질이 「${Q_TIERS[qTier(it.q ?? 0)].name}」이 되었다! 개조 칸·덤 효과가 늘어날 수 있어요.`, 'rare', 3500);
+      if (qTier(it.q ?? 0) > qTier(q0)) toast(`품질이 「${Q_TIERS[qTier(it.q ?? 0)].name}」이 되었다! 개조 칸·덤 효과가 늘어날 수 있어요.`, 'rare');
       if (qTier(it.q ?? 0) > qTier(q0)) growAffix(it, q0);
       save();
       celebrate(root, ns, [], hq ?? 0, G.equip[it.slot] === it.id, null).then(() => { render(); onChange(); });

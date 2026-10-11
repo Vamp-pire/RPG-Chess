@@ -3,6 +3,7 @@ import { MoveRule, previewPattern } from '../core/rules';
 import { fx } from '../render/fx';
 import { portraitUrl } from '../render/sprites';
 import { prefs } from '../core/prefs';
+import { log } from '../core/state';
 
 type Child = Node | string | number | null | undefined | false;
 
@@ -235,15 +236,32 @@ function typewrite(el: HTMLElement, text: string) {
   tick();
 }
 
-export function toast(msg: string, kind: 'info' | 'good' | 'rare' | 'bad' = 'info', ms = 2400) {
+/*
+ * 알림 통로 규칙 — 무게에 맞는 통로 하나만 쓴다.
+ *   판 위 글씨 (fx.text)  전투 중 그 칸에서 일어난 일 (피해·회피·반격 등)
+ *   띠 (band)            전투 흐름 속 짧은 요약·등장. 막지 않는다 (일반 전리품, 엘리트 등장)
+ *   토스트 (toast)        판 밖의 결과·진행 알림. 막지 않는다. 전투 중에는 규칙이 바뀌는 경고만
+ *                         info 안내 · good 작은 결과 · bad 실패·손실 · rare 드문 발견(업적·낙서·흔적·희귀)
+ *   창 (modal/dialog)     고르거나 꼭 읽어야 하는 것 (보스·희귀 전리품, 선택지)
+ *   컷인 (cutin)          이야기의 마디만 (보스 등장·단계, 승급, 엔딩)
+ *   기록 (log)            지나간 일을 다시 볼 곳. rare 토스트는 저절로 남는다
+ */
+/** ms를 주지 않으면 글 길이에 맞춰 (2.4~7초) */
+export function toast(msg: string, kind: 'info' | 'good' | 'rare' | 'bad' = 'info', ms?: number) {
   if (fx.instant) return;
-  const el = h('div', { class: `toast ${kind}` }, msg);
+  if (kind === 'rare') log(msg);
+  const life = ms ?? Math.min(7000, Math.max(2400, 1800 + msg.length * 55));
   const box = document.getElementById('toasts')!;
-  box.append(el);
-  // 한꺼번에 3개까지만 보여 준다 (오래된 것부터 치운다)
-  while (box.children.length > 3) box.firstElementChild!.remove();
-  setTimeout(() => el.classList.add('out'), ms);
-  setTimeout(() => el.remove(), ms + 400);
+  // 같은 글이 이미 떠 있으면 새로 쌓지 않고 시간만 늘린다 (재료 부족 연타 등)
+  const same = [...box.children].find((c) => c.textContent === msg && !c.classList.contains('out')) as HTMLElement | undefined;
+  const el = same ?? h('div', { class: `toast ${kind}` }, msg);
+  if (!same) box.append(el);
+  // 한꺼번에 3개까지만: 드문 발견(rare)은 지키고 나머지 중 오래된 것부터 치운다
+  while (box.children.length > 3) ([...box.children].find((c) => !c.classList.contains('rare')) ?? box.firstElementChild!).remove();
+  const t = Number(el.dataset.t ?? 0) + 1;
+  el.dataset.t = String(t);
+  setTimeout(() => { if (el.dataset.t === String(t)) el.classList.add('out'); }, life);
+  setTimeout(() => { if (el.dataset.t === String(t)) el.remove(); }, life + 400);
 }
 
 /**

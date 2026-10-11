@@ -45,14 +45,14 @@ export function startTower(app: App) {
   run = { floor: 1 };
   G.hp = maxHp();
   log('🗼 끝없는 탑에 올랐다.');
-  toast(`끝없는 탑 — 최고 기록 ${towerBest()}층. 쓰러져도 재료는 잃지 않아요.`, 'info', 4000);
+  toast(`끝없는 탑 — 최고 기록 ${towerBest()}층. 쓰러져도 재료는 잃지 않아요.`, 'info');
   climb(app);
 }
 
 function climb(app: App) {
   if (!run) return;
   const n = run.floor;
-  if (n % 5 === 1) toast(`🗼 ${tierOf(n).name} (${n}~${n + 4}층)`, 'info', 3000);
+  if (n % 5 === 1) toast(`🗼 ${tierOf(n).name} (${n}~${n + 4}층)`, 'info');
   app.startEncounter(floorEnc(n), { onWin: () => cleared(app) });
 }
 
@@ -87,7 +87,7 @@ function cleared(app: App) {
     const rares: MatId[] = ['pearl', 'silver', 'crack', 'fang', 'mirror', 'tusk', 'quill', 'shard'];
     const r = pick(rares);
     addBag(r, 1);
-    toast(`🗼 ${n}층 수문장을 넘었다! 희귀 재료 ${MATS[r].name}을(를) 얻었다.`, 'rare', 4000);
+    toast(`🗼 ${n}층 수문장을 넘었다! 희귀 재료 ${MATS[r].name}을(를) 얻었다.`, 'rare');
   }
   whenFree(() => choose(app, n, best));
 }

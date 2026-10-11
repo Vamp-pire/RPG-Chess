@@ -266,7 +266,7 @@ export class App {
       G.flags.gear2 = true;
       const a = align();
       if (a) giveStarter(a);
-      if (!fresh && G.items.some((it) => !it.base)) setTimeout(() => toast('장비 체계가 바뀌었어요: 이제 몹이 장비를 떨어뜨리고, 대장간은 개조·강화를 해요. 갖고 있던 장비는 「옛 장비」로 그대로 쓸 수 있어요.', 'info', 7000), 1200);
+      if (!fresh && G.items.some((it) => !it.base)) setTimeout(() => toast('장비 체계가 바뀌었어요: 이제 몹이 장비를 떨어뜨리고, 대장간은 개조·강화를 해요. 갖고 있던 장비는 「옛 장비」로 그대로 쓸 수 있어요.', 'info'), 1200);
       save();
     }
     // 옛 저장: 새로 생긴 이야기 줄기를 이어 준다
@@ -556,7 +556,7 @@ export class App {
       sfx('win');
       save();
       this.showSpoils(new Map([['rabbitfoot', 1]]), 0, ['rabbitfoot'], '', undefined, [it]);
-      toast('눈토끼를 잡았다! 좀처럼 없는 일이다.', 'rare', 4000);
+      toast('눈토끼를 잡았다! 좀처럼 없는 일이다.', 'rare');
       this.refreshAll();
       return;
     }
@@ -764,7 +764,8 @@ export class App {
     // 보스 기록 (최단 턴 · 노피격)
     if (b && enc && (enc.boss || enc.awake) && !inTower()) {
       const rec = noteBossWin(enc.name, b.turn, b.dmgTaken);
-      if (rec) setTimeout(() => toast(`🏆 ${enc.name} — ${rec}`, 'rare', 4500), fx.instant ? 0 : 1200);
+      // 컷인 위로 알림이 겹치지 않게, 전리품 창 안에 한 줄로 보여 준다
+      if (rec) { this.bossRec = `🏆 ${enc.name} — ${rec}`; log(this.bossRec); }
     }
     emit('battleWin', { boss: !!enc?.boss, dmg: b?.dmgTaken ?? 0, turns: b?.turn ?? 0, enc: enc?.name, hows: b?.hows ?? [], acts: b?.acts, hp: G.hp, will: !!b?.willFired, kills, awake: !!enc?.awake });
     let bossText = '';
@@ -843,9 +844,14 @@ export class App {
     this.explore.removeObj('rook');
   }
 
+  /** 이번 승리로 새로 세운 보스 기록 (전리품 창에 한 줄) */
+  private bossRec = '';
+
   showSpoils(drops: Map<MatId, number>, gold: number, rare: MatId[], bossText: string, after?: () => Promise<void>, gear: Item[] = []) {
+    const rec = this.bossRec;
+    this.bossRec = '';
     // 평범한 전투(장비·희귀·새 재료 없음)는 창 대신 판 아래 띠로 짧게: 매번 닫는 수고를 덜어 준다
-    const special = !!bossText || gear.length > 0 || [...drops.keys()].some((id) => MATS[id].rare || MATS[id].key || freshMats.has(id));
+    const special = !!bossText || !!rec || gear.length > 0 || [...drops.keys()].some((id) => MATS[id].rare || MATS[id].key || freshMats.has(id));
     if (!special) {
       const items: (HTMLElement | string)[] = [h('b', { class: 'band-title' }, '전리품')];
       for (const [id, n] of drops) items.push(h('span', { class: 'band-item' }, matIcon(id, 22), `${MATS[id].name} ×${n}`));
@@ -870,7 +876,7 @@ export class App {
     }
     freshMats.clear();
     // 희귀·새 재료는 따로 알림을 띄우지 않고 이 창 한 장에서 보여 준다
-    const body = h('div', {}, list, h('p', { class: 'spoil-sum' }, `+${gold}G · 재료 ${[...drops.values()].reduce((a, b) => a + b, 0)}개${gear.length ? ` · 장비 ${gear.length}개` : ''} → 가방`));
+    const body = h('div', {}, list, rec ? h('p', { class: 'spoil-sum rec' }, rec) : null, h('p', { class: 'spoil-sum' }, `+${gold}G · 재료 ${[...drops.values()].reduce((a, b) => a + b, 0)}개${gear.length ? ` · 장비 ${gear.length}개` : ''} → 가방`));
     if (bossText) cutin('승리', bossText, 'win').then(() => (after ? after() : undefined)).then(() => modal('전리품', body));
     else modal('전리품', body);
     void rare;
@@ -1028,7 +1034,7 @@ export class App {
       const extra = !first && before && jobDef(j)!.align !== before ? paid * 2 : 0;
       if (extra && G.gold < extra) {
         G.gold += paid;
-        toast(`계열을 바꾸려면 ${extra}G가 더 필요해요. 이름은 그대로 두었어요.`, 'bad', 3500);
+        toast(`계열을 바꾸려면 ${extra}G가 더 필요해요. 이름은 그대로 두었어요.`, 'bad');
         this.refreshAll();
         return;
       }
@@ -1037,7 +1043,7 @@ export class App {
       const jd = jobDef(j)!;
       log(`🪶 직업: ${jd.name} (${ALIGN_NAMES[jd.align]})${extra ? ` — 계열 변경 ${paid + extra}G` : ''}`);
       const st = giveStarter(jd.align);
-      if (st) toast(`${ALIGN_NAMES[jd.align]} 계열 시작 무기: ${itemStats(st).name}`, 'good', 3500);
+      if (st) toast(`${ALIGN_NAMES[jd.align]} 계열 시작 무기: ${itemStats(st).name}`, 'good');
       if (first) {
         qComplete('main_job', { gold: 10 });
         toast('촌장 킹(벽 오른쪽)에게 말을 걸어 보자', 'info');
