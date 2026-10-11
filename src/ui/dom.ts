@@ -247,6 +247,25 @@ export function toast(msg: string, kind: 'info' | 'good' | 'rare' | 'bad' = 'inf
 }
 
 /**
+ * 판 위를 가로지르는 띠: 조작을 막지 않고 잠깐 보였다 사라진다. 누르면 바로 닫힌다.
+ * low = 판 아래쪽 (일반 전투 전리품 요약), mid = 판 가운데 (엘리트 등장)
+ */
+export function band(children: Child[], opts: { pos?: 'low' | 'mid'; ms?: number; kind?: string } = {}) {
+  if (fx.instant) return;
+  const pos = opts.pos ?? 'low';
+  document.querySelectorAll(`.band.${pos}`).forEach((e) => e.remove());
+  const el = h('div', { class: `band ${pos} ${opts.kind ?? ''}` }, ...children);
+  const close = () => {
+    if (el.classList.contains('out')) return;
+    el.classList.add('out');
+    setTimeout(() => el.remove(), 350);
+  };
+  el.addEventListener('click', close);
+  (document.getElementById('stage') ?? document.body).append(el);
+  setTimeout(close, opts.ms ?? 2600);
+}
+
+/**
  * 처음 한 번만 나오는 짧은 힌트 말풍선 (튜토리얼 대신).
  * 닫기 버튼은 없다: 안내한 행동을 하면 clearCoach(id)로 저절로 사라진다.
  */

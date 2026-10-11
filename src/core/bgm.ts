@@ -174,6 +174,18 @@ export function setMood(m: Mood) {
   });
 }
 
+/** 잠깐 음악을 낮춘다 (보스 마지막 일격 → 승리 팡파르가 들리게). ms 동안 to 배율로 눌렀다가 천천히 돌아온다 */
+export function duck(ms = 1600, to = 0.15) {
+  if (!ctx || !master || !song) return;
+  const g = master.gain;
+  const now = ctx.currentTime;
+  g.cancelScheduledValues(now);
+  g.setValueAtTime(g.value, now);
+  g.linearRampToValueAtTime(level() * to, now + 0.12);
+  g.setValueAtTime(level() * to, now + ms / 1000);
+  g.linearRampToValueAtTime(level(), now + ms / 1000 + 1.2);
+}
+
 /** 설정이 바뀌었을 때: 끄면 멈추고, 켜면 지금 장소의 곡으로, 음량은 바로 반영 */
 export function musicPrefsChanged() {
   if (!prefs().music) {

@@ -22,14 +22,14 @@ import { ALIGN_NAMES, Align, BranchId, COMPANIONS, PIECES, PROMO3, PieceId, jobD
 import { Renderer, Scene } from '../render/board';
 import { fx } from '../render/fx';
 import { pieceSrc, portraitUrl } from '../render/sprites';
-import { Choice, clearCoach, coach, cutin, dialog, h, modal, modalOpen, patternGrid, setDialogHero, toast, helpFold } from '../ui/dom';
+import { Choice, band, clearCoach, coach, cutin, dialog, h, modal, modalOpen, patternGrid, setDialogHero, toast, helpFold } from '../ui/dom';
 import { openCodex, openMobCard } from '../ui/codex';
 import { deltaChip, gearIcon, matIcon, newSquares, openForge, invGrid } from '../ui/forge';
 import { openDifficulty, openHelp, openMap, openSettings } from '../ui/extra';
 import { prefs } from '../core/prefs';
 import { PUZZLES, openBoard, openInn, openInventory, openJobSelect, openPuzzle, openShop } from '../ui/town';
 import { initAchievements, openAchievements, syncAchievements } from './achievements';
-import { Battle, BattleResult } from './battle';
+import { Battle, BattleResult, ELITE } from './battle';
 import { Explore, RMob, RObj, exitOpen } from './explore';
 import { RECORD_NEED, noteBossWin, recordBlocks, recordText, showRecord } from './record';
 import { openFeedback } from '../ui/feedback';
@@ -606,6 +606,15 @@ export class App {
         await cutin('잘못 둔 퀸', bossNote, 'boss');
       }
       if (enc === FIXED_ENCS.blunder) await cutin('???', '있어서는 안 될 수.', 'boss');
+      else if (!enc.boss) {
+        // 엘리트·탑 수문장: 막지 않는 짧은 등장 띠 (보스 컷인보다 한 단계 가볍게)
+        const guard = enc.name.includes('수문장');
+        const em = enc.enemies.find((e) => ELITE.has(e.m))?.m ?? (guard ? [...enc.enemies].sort((a, b) => MOBS[b.m].hp - MOBS[a.m].hp)[0]?.m : undefined);
+        if (em) {
+          sfx('elite');
+          band([h('span', { class: 'band-kicker' }, guard ? '수문장' : '엘리트'), h('b', {}, MOBS[em].name), h('small', {}, MOBS[em].desc.replace(/^엘리트\.\s*/, '').split('. ')[0])], { pos: 'mid', ms: 1800 });
+        }
+      }
       this.tip('battle', '붉게 깜빡이는 칸은 적이 다음 턴에 공격할 곳이에요. 거기서 비켜서면 맞지 않아요. 바로 옆에 붙어서 치면 피해가 2배예요 (적도 마찬가지).', { act: '손가락이 가리키는 칸을 누르세요 (적을 치거나, 붉은 칸을 피해 움직이기)' });
       if (G.party.length || enc.guest) this.tip('ally', '동료와 함께일 때는 한 턴에 말 하나만 움직일 수 있어요.', { act: '움직일 말을 판에서 눌러 바꿔 보세요' });
       if (enc.guest) toast(`${COMPANIONS[enc.guest].name}이(가) 함께 싸운다. 움직일 말을 판에서 누르면 바꿀 수 있다.`, 'info');
@@ -835,6 +844,15 @@ export class App {
   }
 
   showSpoils(drops: Map<MatId, number>, gold: number, rare: MatId[], bossText: string, after?: () => Promise<void>, gear: Item[] = []) {
+    // 평범한 전투(장비·희귀·새 재료 없음)는 창 대신 판 아래 띠로 짧게: 매번 닫는 수고를 덜어 준다
+    const special = !!bossText || gear.length > 0 || [...drops.keys()].some((id) => MATS[id].rare || MATS[id].key || freshMats.has(id));
+    if (!special) {
+      const items: (HTMLElement | string)[] = [h('b', { class: 'band-title' }, '전리품')];
+      for (const [id, n] of drops) items.push(h('span', { class: 'band-item' }, matIcon(id, 22), `${MATS[id].name} ×${n}`));
+      if (gold) items.push(h('span', { class: 'band-item gold' }, `+${gold}G`));
+      if (drops.size || gold) band(items, { ms: 2600 });
+      return;
+    }
     const list = h('div', { class: 'spoils' });
     let i = 0;
     // 장비는 재료보다 먼저, 품질 색으로

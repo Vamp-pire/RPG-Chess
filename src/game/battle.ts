@@ -12,6 +12,7 @@ import { easeInOut, easeOut, fx } from '../render/fx';
 import { clearCoach, coachNow, cutin, h, toast, helpFold } from '../ui/dom';
 import { DIFFS } from '../core/difficulty';
 import { sfx } from '../core/sfx';
+import { duck } from '../core/bgm';
 import { perk } from './rewards';
 import { runRule } from './runrules';
 import { bossFell } from './throne';
@@ -103,7 +104,10 @@ export interface Frame { note: string; tiles: string; units: [string, number, nu
 const HINT_BATTLES = 5;
 const WALKABLE = new Set<TileKind>(['floor', 'throne', 'bush', 'ice', 'high']);
 /** 엘리트 (빛나는 개체가 되지 않고, 어려움에서 체력이 늘어난다) */
-const ELITE = new Set<MobId>(['hound', 'bonelord', 'rook', 'blunder']);
+/** 반격 태세 색: 붙어 친 피해(주황)와 헷갈리지 않게 보라 */
+const STANCE_COLOR = '#c9a2ff';
+const STANCE_GLOW = 'rgba(176,130,255,0.75)';
+export const ELITE = new Set<MobId>(['hound', 'bonelord', 'rook', 'blunder']);
 /** 숨은 빠르기 (화면엔 안 보임): 0 느림 · 1 보통(기본) · 2 빠름. 난이도의 haste와 곱해 '한 번 더 움직일' 확률이 된다 */
 const SPEED: Partial<Record<MobId, number>> = {
   rat: 2, bat: 2, hound: 2, wolf: 2, spider: 2, inkblot: 2, erased: 2, wraith: 2, icesprite: 2,
@@ -912,8 +916,9 @@ export class Battle {
       fx.text(u.x + 0.5, u.y - 0.35, '반격 실패', '#c8b9a6');
       return false;
     }
-    fx.text(u.x + 0.5, u.y - 0.35, '반격!', '#ffb27a', true);
-    await lunge(u.ent, [a.x, a.y], () => {});
+    fx.text(u.x + 0.5, u.y - 0.35, '반격!', STANCE_COLOR, true);
+    fx.burst(u.x + 0.5, u.y + 0.5, STANCE_COLOR, 8, { speed: 2.5, life: 350, shape: 'spark' });
+    await lunge(u.ent, [a.x, a.y], () => sfx('counter'));
     await this.hitAlly(a, 1, u);
     return true;
   }
@@ -1030,6 +1035,7 @@ export class Battle {
       fx.flash(boss ? 0.9 : elite ? 0.45 : 0.3);
       fx.shake(boss ? 12 : elite ? 6 : 4, boss ? 500 : 220);
       if (boss) {
+        duck(2600);
         fx.slow(0.35, 1100);
         fx.text(u.x + 0.5, u.y - 0.6, '체크메이트!', '#ffe08a', true, 1600, 0.6);
         fx.burst(u.x + 0.5, u.y + 0.5, '#ffe08a', 36, { speed: 5, life: 1100, shape: 'spark' });
@@ -1849,6 +1855,7 @@ export class Battle {
   private armRetaliations() {
     const chance = DIFFS[G.diff].retaliate;
     if (!chance || this.enc.boss || this.enc.hold || this.enc.guest || this.enc.daily) return;
+    let armed = false;
     for (const u of this.enemies()) {
       const ai = MOBS[u.mob!].ai;
       if (ai !== 'basic' && ai !== 'charge') continue;
@@ -1861,9 +1868,11 @@ export class Battle {
       if (u.unhitTurns < 3) continue;
       u.unhitTurns = 0;
       u.retaliating = true;
-      u.ent.glow = 'rgba(255,174,92,0.7)';
-      fx.text(u.x + 0.5, u.y - 0.25, `반격 태세 ${Math.round(chance * 100)}%`, '#ffbf7a', false, 2400, 0.17);
+      u.ent.glow = STANCE_GLOW;
+      armed = true;
+      fx.text(u.x + 0.5, u.y - 0.25, `반격 태세 ${Math.round(chance * 100)}%`, STANCE_COLOR, false, 2400, 0.17);
     }
+    if (armed) sfx('stance');
   }
 
   private async bossEvents() {
@@ -2239,7 +2248,7 @@ export class Battle {
       list.append(h('div', { class: 'enemy-row' },
         h('span', { class: u.shiny ? 'shiny-name' : u.pre ? 'pre-name' : '' }, u.shiny ? `✨ 빛나는 ${d.name}` : this.mobName(u), this.shielded(u) ? ' 🛡' : '', u.revived ? ' (부활)' : '', u.under ? ' (땅속)' : '', u.loot ? ` 💰${u.loot}G` : ''),
         h('span', { class: 'muted' }, `HP ${u.hp}/${u.maxHp}`, this.synergy(u).bonus ? h('b', { class: 'syn' }, ` ${this.synergy(u).why} +1`) : ''),
-        h('span', { class: `intent ${it?.t ?? ''}` }, u.retaliating ? `반격 태세 ${Math.round(DIFFS[G.diff].retaliate * 100)}%` : itxt),
+        h('span', { class: `intent ${u.retaliating ? 'stance' : it?.t ?? ''}` }, u.retaliating ? `반격 태세 ${Math.round(DIFFS[G.diff].retaliate * 100)}%` : itxt),
         h('div', { class: 'small muted w100' }, ...termify(scholar ? `공격 ${u.atk} · ${d.desc}` : d.desc), u.shiny ? ' 8방향 1칸으로도 움직이고 공격한다.' : '', u.pre ? ` ${PRE_NAME[u.pre]}: ${PRE_DESC[u.pre]}` : ''),
       ));
     }

@@ -53,7 +53,7 @@ function noise(dur: number, vol = 0.3, hp = 800, delay = 0) {
   src.start(t);
 }
 
-export type Sfx = 'step' | 'hit' | 'hurt' | 'shot' | 'hammer' | 'perfect' | 'win' | 'lose' | 'ach' | 'coin' | 'event' | 'travel' | 'ability' | 'boss' | 'kill' | 'promo' | 'fall';
+export type Sfx = 'step' | 'hit' | 'hurt' | 'shot' | 'hammer' | 'perfect' | 'win' | 'lose' | 'ach' | 'coin' | 'event' | 'travel' | 'ability' | 'boss' | 'kill' | 'promo' | 'fall' | 'elite' | 'stance' | 'counter';
 
 export function sfx(name: Sfx) {
   if (fx.instant) return; // 시뮬레이션 중엔 조용히
@@ -77,6 +77,12 @@ export function sfx(name: Sfx) {
     case 'promo': [392, 523, 659, 784, 1046].forEach((f, i) => tone(f, 0.4, 'triangle', 0.18, f, i * 0.07)); return;
     // 주인공이 쓰러짐: 무겁게 내려앉는 소리
     case 'fall': noise(0.35, 0.22, 150); return tone(180, 0.6, 'sine', 0.25, 50);
+    // 엘리트 등장: 낮게 울리는 경고음 두 번
+    case 'elite': tone(110, 0.3, 'sawtooth', 0.16, 90); return tone(110, 0.35, 'sawtooth', 0.16, 80, 0.32);
+    // 반격 태세: 칼을 고쳐 쥐는 짧은 금속음
+    case 'stance': return tone(1500, 0.09, 'triangle', 0.08, 1900);
+    // 반격: 날카롭게 맞받아치는 소리
+    case 'counter': noise(0.06, 0.3, 3000); return tone(700, 0.14, 'square', 0.12, 1400);
     case 'boss': tone(80, 0.8, 'sawtooth', 0.25, 60); return noise(0.6, 0.15, 100);
   }
 }
