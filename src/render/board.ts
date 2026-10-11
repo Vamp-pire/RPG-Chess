@@ -22,6 +22,10 @@ export interface Ent {
   flashColor?: string;
   hp?: number;
   maxHp?: number;
+  /** 체력 막대 잔상 (깎인 만큼 잠깐 남았다가 줄어든다) */
+  hpPrev?: number;
+  hpFrom?: number;
+  hpAt?: number;
   badge?: string;
   bob?: boolean;
   glow?: string;
@@ -332,6 +336,14 @@ export class Renderer {
     ctx.restore();
     if (fx.flashA > 0) {
       ctx.fillStyle = `rgba(255,248,230,${fx.flashA * 0.55})`;
+      ctx.fillRect(0, 0, this.cw, this.ch);
+    }
+    if (fx.hurtA > 0) {
+      const r = Math.hypot(this.cw, this.ch) / 2;
+      const g = ctx.createRadialGradient(this.cw / 2, this.ch / 2, r * 0.4, this.cw / 2, this.ch / 2, r);
+      g.addColorStop(0, 'rgba(200,20,10,0)');
+      g.addColorStop(1, `rgba(200,20,10,${Math.min(1, fx.hurtA) * 0.8})`);
+      ctx.fillStyle = g;
       ctx.fillRect(0, 0, this.cw, this.ch);
     }
   }
@@ -851,6 +863,23 @@ export class Renderer {
         const bh = ts * 0.09;
         ctx.fillStyle = 'rgba(0,0,0,0.45)';
         ctx.fillRect(bx, by, total, bh);
+        // 잔상: 맞은 뒤 0.25초 머물렀다가 0.4초에 걸쳐 따라 줄어든다
+        let trail = e.hp;
+        if (e.hpFrom !== undefined) {
+          const k = Math.min(1, Math.max(0, (fx.time - (e.hpAt ?? 0) - 250) / 400));
+          trail = e.hpFrom + (e.hp - e.hpFrom) * k;
+          if (k >= 1 || e.hp >= e.hpFrom) e.hpFrom = undefined;
+        }
+        if (e.hpPrev !== undefined && e.hp < e.hpPrev) {
+          e.hpFrom = Math.max(trail, e.hpPrev);
+          e.hpAt = fx.time;
+          trail = e.hpFrom;
+        }
+        e.hpPrev = e.hp;
+        if (trail > e.hp) {
+          ctx.fillStyle = '#f2dca0';
+          ctx.fillRect(bx, by, total * Math.min(n, trail) / n, bh);
+        }
         ctx.fillStyle = e.id.startsWith('c_') || e.id === 'hero' ? '#4aa86a' : '#d23a2a';
         ctx.fillRect(bx, by, total * Math.max(0, e.hp) / n, bh);
         const fs = Math.max(9, Math.round(ts * 0.13));

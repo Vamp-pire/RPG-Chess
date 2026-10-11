@@ -53,7 +53,7 @@ function noise(dur: number, vol = 0.3, hp = 800, delay = 0) {
   src.start(t);
 }
 
-export type Sfx = 'step' | 'hit' | 'hurt' | 'shot' | 'hammer' | 'perfect' | 'win' | 'lose' | 'ach' | 'coin' | 'open' | 'event' | 'travel' | 'brace' | 'ability' | 'boss';
+export type Sfx = 'step' | 'hit' | 'hurt' | 'shot' | 'hammer' | 'perfect' | 'win' | 'lose' | 'ach' | 'coin' | 'event' | 'travel' | 'ability' | 'boss' | 'kill' | 'promo' | 'fall';
 
 export function sfx(name: Sfx) {
   if (fx.instant) return; // 시뮬레이션 중엔 조용히
@@ -68,11 +68,15 @@ export function sfx(name: Sfx) {
     case 'lose': [392, 330, 262].forEach((f, i) => tone(f, 0.35, 'sine', 0.22, f * 0.97, i * 0.18)); return;
     case 'ach': [784, 1046, 1318].forEach((f, i) => tone(f, 0.25, 'sine', 0.2, f, i * 0.07)); return;
     case 'coin': tone(988, 0.07, 'square', 0.12, 988); return tone(1318, 0.18, 'square', 0.12, 1318, 0.06);
-    case 'open': return tone(440, 0.12, 'sine', 0.15, 660);
     case 'event': [660, 880].forEach((f, i) => tone(f, 0.15, 'sine', 0.18, f, i * 0.1)); return;
     case 'travel': return noise(0.3, 0.12, 200);
-    case 'brace': return tone(200, 0.2, 'triangle', 0.25, 260);
     case 'ability': return tone(500, 0.25, 'sine', 0.2, 1000);
+    // 처치: 짧게 바스러지는 소리 + 낮게 떨어지는 음
+    case 'kill': noise(0.14, 0.28, 2500); return tone(420, 0.16, 'triangle', 0.16, 140, 0.02);
+    // 승급: 올라가는 화음 (컷인과 함께)
+    case 'promo': [392, 523, 659, 784, 1046].forEach((f, i) => tone(f, 0.4, 'triangle', 0.18, f, i * 0.07)); return;
+    // 주인공이 쓰러짐: 무겁게 내려앉는 소리
+    case 'fall': noise(0.35, 0.22, 150); return tone(180, 0.6, 'sine', 0.25, 50);
     case 'boss': tone(80, 0.8, 'sawtooth', 0.25, 60); return noise(0.6, 0.15, 100);
   }
 }

@@ -2,6 +2,8 @@
 import { Vec } from '../core/geom';
 import { Ent } from './board';
 import { easeInOut, easeOut, easeOutBack, fx, linear } from './fx';
+import { MOBS, MobId } from '../data/mobs';
+import { sfx } from '../core/sfx';
 
 export async function moveEnt(e: Ent, to: Vec) {
   const fx0 = e.x;
@@ -65,9 +67,13 @@ export function flash(e: Ent, color = '#ffffff', dur = 220) {
   return fx.tween(dur, (p) => { e.flash = 1 - p; }, linear);
 }
 
-export function hitFx(e: Ent, dmg: number, color = '#ff5a4a', melee = false) {
+/** hurt = 주인공이 맞았다: 흔들림을 더 세게 + 화면 가장자리가 붉게. 적이 맞을 때는 가볍게 (흔들림은 큰 순간에 아껴 둔다) */
+export function hitFx(e: Ent, dmg: number, color = '#ff5a4a', melee = false, hurt = false) {
   fx.stop(melee ? 80 : 55);
-  fx.shake(melee ? 6 : dmg >= 2 ? 4 : 3);
+  if (hurt) {
+    fx.shake(5);
+    fx.hurt(melee ? 0.75 : 0.55);
+  } else fx.shake(melee ? 3 : 2);
   flash(e, '#ff2a1a');
   // 붙어서 친 2배 피해는 크고 주황색, 떨어져서 친 피해는 흰색에 가깝게
   fx.text(e.x + 0.5, e.y + 0.1, melee ? `-${dmg}!` : `-${dmg}`, melee ? '#ffa23a' : color, melee);
@@ -88,7 +94,10 @@ const DEATH_COLORS: Record<string, string[]> = {
 };
 
 export async function death(e: Ent, mob: string) {
-  const cols = DEATH_COLORS[mob] ?? ['#ccc'];
+  // 손으로 고른 색이 없으면 몹 고유 색 + 밝은 조각
+  const own = MOBS[mob as MobId]?.color;
+  const cols = DEATH_COLORS[mob] ?? (own ? [own, '#e8e2cf'] : ['#ccc']);
+  sfx('kill');
   const heavy = mob === 'golem' || mob === 'rook';
   for (const c of cols) fx.burst(e.x + 0.5, e.y + 0.5, c, heavy ? 9 : 7, { speed: heavy ? 2.2 : 3, grav: heavy ? 1.2 : 0.4, shape: heavy ? 'chip' : 'dot', life: 550, size: heavy ? 0.11 : 0.09 });
   await fx.tween(220, (p) => {

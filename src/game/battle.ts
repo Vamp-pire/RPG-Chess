@@ -701,7 +701,7 @@ export class Battle {
     if (this.enc.hold && this.turn >= this.enc.hold && this.hero.hp > 0) {
       this.over = true;
       this.refresh();
-      setTimeout(() => this.cb.end('win', this.kills), fx.instant ? 0 : 450);
+      void this.finish('win');
       return;
     }
     if (this.enc.hold) this.bossNote = `버티기 ${this.turn}/${this.enc.hold} — 저자를 치지 않고 끝까지 서 있자.`;
@@ -781,16 +781,37 @@ export class Battle {
     if (this.hero.hp <= 0) {
       this.over = true;
       this.refresh();
-      setTimeout(() => this.cb.end('lose', this.kills), fx.instant ? 0 : 500);
+      void this.finish('lose');
       return true;
     }
     if (this.enemies().length === 0) {
       this.over = true;
       this.refresh();
-      setTimeout(() => this.cb.end('win', this.kills), fx.instant ? 0 : 450);
+      void this.finish('win');
       return true;
     }
     return false;
+  }
+
+  /** 마지막 일격의 무게 (전투 끝 연출 길이를 정한다) */
+  private finale: 'normal' | 'elite' | 'boss' = 'normal';
+
+  /** 전투 끝: 마지막 연출이 숨을 쉴 틈을 준 뒤 어둡게 닫고 결과로 넘어간다 (주인공이 쓰러지면 먼저 쓰러지는 모습) */
+  private async finish(r: 'win' | 'lose') {
+    if (fx.instant) { this.cb.end(r, this.kills); return; }
+    if (r === 'lose') {
+      const e = this.hero.ent;
+      sfx('fall');
+      fx.slow(0.5, 500);
+      await fx.tween(520, (p) => { e.sx = 1 + p * 0.3; e.sy = 1 - p * 0.75; e.alpha = 1 - p * 0.55; }, easeOut);
+      await fx.wait(250);
+    } else await fx.wait(this.finale === 'boss' ? 1300 : this.finale === 'elite' ? 650 : 380);
+    const fade = document.getElementById('fade');
+    fade?.classList.add('on');
+    await new Promise((ok) => setTimeout(ok, 240));
+    this.cb.end(r, this.kills);
+    // 다음 화면(탐험·마을)이 그려진 뒤 걷힌다
+    setTimeout(() => { if (!fade?.classList.contains('battle')) fade?.classList.remove('on'); }, 60);
   }
 
   // ---------- 아군 행동 ----------
@@ -1001,10 +1022,13 @@ export class Battle {
     // 마지막 일격: 잠깐 멈추고 그 칸으로 확대 + 번쩍. 보스는 느린 화면과 '체크메이트!'
     if (!noDrop && this.enemies().length === 0 && u.mob !== 'slime' && !d.split) {
       const boss = d.ai === 'boss' || d.ai === 'queen';
-      fx.stop(boss ? 220 : 120);
-      fx.zoom(u.x + 0.5, u.y + 0.5, boss ? 0.3 : 0.16, boss ? 1300 : 650);
-      fx.flash(boss ? 0.9 : 0.45);
-      fx.shake(boss ? 12 : 6, boss ? 500 : 220);
+      const elite = ELITE.has(u.mob!) || !!this.enc.name?.includes('수문장');
+      this.finale = boss ? 'boss' : elite ? 'elite' : 'normal';
+      // 세기는 무게에 비례: 일반 전투는 짧은 멈춤·번쩍임만, 확대는 엘리트·보스에만
+      fx.stop(boss ? 220 : elite ? 140 : 100);
+      if (boss || elite) fx.zoom(u.x + 0.5, u.y + 0.5, boss ? 0.3 : 0.14, boss ? 1300 : 650);
+      fx.flash(boss ? 0.9 : elite ? 0.45 : 0.3);
+      fx.shake(boss ? 12 : elite ? 6 : 4, boss ? 500 : 220);
       if (boss) {
         fx.slow(0.35, 1100);
         fx.text(u.x + 0.5, u.y - 0.6, '체크메이트!', '#ffe08a', true, 1600, 0.6);
@@ -2091,7 +2115,7 @@ export class Battle {
     a.hp = Math.max(0, a.hp - dmg);
     ae.hp = a.hp;
     if (dmg > 0) sfx('hurt');
-    hitFx(ae, dmg, undefined, meleeHit);
+    hitFx(ae, dmg, undefined, meleeHit, isHero);
     if (isHero) {
       this.dmgTaken += dmg;
       // 패배 원인 기록

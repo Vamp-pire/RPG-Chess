@@ -780,6 +780,7 @@ button.qline.tracked { background: #2b2213; }
 .act-btn:disabled { opacity: .45; cursor: not-allowed; }
 .act-btn.ghost { background: transparent; }
 .act-btn:hover:not(:disabled) { border-color: var(--gold); }
+.act-btn:active:not(:disabled) { transform: translateY(1px) scale(.97); filter: brightness(1.15); }
 .act-chip { align-self: center; font-size: 12px; padding: 4px 8px; border-radius: 999px; background: rgba(90,150,90,.2); border: 1px solid #5a8a5a; }
 .act-chip.warn { background: rgba(170,90,40,.2); border-color: #a86a3a; }
 .act-gap { flex: 0 0 4px; }

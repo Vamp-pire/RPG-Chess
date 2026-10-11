@@ -1064,6 +1064,7 @@ export class App {
     }
     G.hp = maxHp();
     log(`👑 승급: ${pr.name}`);
+    sfx('promo');
     await cutin(`승급 — ${pr.name}`, `${pr.desc} 최대 체력 +${pr.hp}.${second ? '' : ' 마을 남쪽 길이 열렸다.'}`, 'promo', pieceSrc(p.img));
     qComplete(second ? 'main_promo2' : 'main_promo', { gold: second ? 60 : 30 });
     if (second) qStart('main_r3');
@@ -1114,6 +1115,7 @@ export class App {
     G.flags.promoted3 = true;
     G.hp = maxHp();
     log(`👑 승급: ${PROMO3.name}`);
+    sfx('promo');
     await cutin(`승급 — ${PROMO3.name}`, `${PROMO3.desc} 최대 체력 +${PROMO3.hp}. 왕의 봉우리 동쪽, 글자가 끊기는 곳으로 가는 길이 열렸다.`, 'promo', pieceSrc(PIECES[G.piece].img));
     qComplete('main_promo3', { gold: 80 });
     qStart('main_r4');

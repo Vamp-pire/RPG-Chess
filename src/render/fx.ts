@@ -31,6 +31,8 @@ class FX {
   zoomDur = 1;
   /** 흰 번쩍임 세기 (0~1) */
   flashA = 0;
+  /** 주인공이 맞았을 때 화면 가장자리 붉은 기운 (0~1) */
+  hurtA = 0;
   time = 0;
   /** 내 차례가 시작된 시각 (판 테두리 반짝) */
   turnAt = -9999;
@@ -91,6 +93,11 @@ class FX {
     this.flashA = Math.max(this.flashA, a);
   }
 
+  hurt(a = 0.6) {
+    if (this.instant || this.skip) return;
+    this.hurtA = Math.max(this.hurtA, a);
+  }
+
   /** x,y: 타일 좌표(중심) */
   burst(x: number, y: number, color: string, n = 10, o: { speed?: number; grav?: number; size?: number; shape?: Particle['shape']; life?: number } = {}) {
     for (let i = 0; i < n; i++) {
@@ -123,6 +130,7 @@ class FX {
     }
     if (this.zoomT > 0) this.zoomT -= dt;
     if (this.flashA > 0) this.flashA = Math.max(0, this.flashA - dt / 350);
+    if (this.hurtA > 0) this.hurtA = Math.max(0, this.hurtA - dt / 700);
     const finished: Tween[] = [];
     for (const t of this.tweens) {
       t.el += tdt;
@@ -161,6 +169,7 @@ class FX {
     this.slowT = 0;
     this.zoomT = 0;
     this.flashA = 0;
+    this.hurtA = 0;
     for (const t of this.tweens) { t.fn(1); t.done(); }
     this.tweens = [];
     this.parts = [];
