@@ -917,3 +917,9 @@ button.qline.tracked { background: #2b2213; }
 @keyframes bandRise { from { opacity: 0; transform: translateX(-50%) translateY(10px); } }
 @keyframes bandSweep { from { opacity: 0; clip-path: inset(0 50% 0 50%); } to { clip-path: inset(0 0 0 0); } }
 .intent.stance { background: #3a2a5a; color: #e2d0ff; }
+/* 동료 훈련 (여관) */
+.train { display: grid; gap: 8px; margin-bottom: 8px; }
+.train-row { display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: rgba(0,0,0,.15); }
+.train-row img { width: 40px; height: 40px; }
+.train-body { display: grid; gap: 2px; }
+.train-row > button, .train-row > .chip { grid-column: 2; justify-self: start; }

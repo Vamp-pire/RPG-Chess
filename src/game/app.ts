@@ -30,6 +30,7 @@ import { prefs } from '../core/prefs';
 import { PUZZLES, openBoard, openInn, openInventory, openJobSelect, openPuzzle, openShop } from '../ui/town';
 import { initAchievements, openAchievements, syncAchievements } from './achievements';
 import { Battle, BattleResult, ELITE } from './battle';
+import { trainStars } from './training';
 import { Explore, RMob, RObj, exitOpen } from './explore';
 import { RECORD_NEED, noteBossWin, recordBlocks, recordText, showRecord } from './record';
 import { openFeedback } from '../ui/feedback';
@@ -1236,7 +1237,7 @@ export class App {
         h('div', { class: 'small muted' }, jd ? `${jd.name} · ${ALIGN_NAMES[jd.align]}` : '직업 없음'),
         h('div', { class: 'gold' }, `${G.gold}G`))),
       h('div', { class: 'hpbar' }, h('i', { style: { width: `${(G.hp / mh) * 100}%` } }), h('span', {}, `HP ${G.hp} / ${mh}`)),
-      G.party.length ? h('div', { class: 'party' }, ...G.party.map((c) => h('span', { class: 'chip', title: COMPANIONS[c].passive }, h('img', { src: pieceSrc(COMPANIONS[c].img), alt: '' }), COMPANIONS[c].name))) : null,
+      G.party.length ? h('div', { class: 'party' }, ...G.party.map((c) => h('span', { class: 'chip', title: COMPANIONS[c].passive }, h('img', { src: pieceSrc(COMPANIONS[c].img), alt: '' }), COMPANIONS[c].name, trainStars(c) ? h('span', { class: 'gold' }, trainStars(c)) : null))) : null,
     ));
     const eq = h('div', { class: 'card' }, h('div', { class: 'sub' }, '행마 · 장비'));
     eq.append(h('div', { class: 'row gap top' }, patternGrid(baseRules(), extra, pieceSrc(p.img)), h('div', { class: 'eq-mini' }, ...SLOTS.map((s) => {

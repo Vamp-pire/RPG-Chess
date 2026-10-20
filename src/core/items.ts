@@ -317,7 +317,7 @@ export function computeBase(it: Item): ItemStats {
 let alchemistSlot = () => false;
 export const setAlchemistCheck = (fn: () => boolean) => { alchemistSlot = fn; };
 const UNIQ_DESC: Record<UniqId, string> = { crowd: '포위 돌파 — 붙어 있는 적이 둘 이상이면 피해 +1', aim: '정조준 — 제자리에서 치면 피해 +1', swap: '자리 바꾸기 — 친 적이 살아남으면 자리를 바꾼다' };
-const TRAIT_NAME: Record<TraitId, string> = { sticky: '점착', sharp: '날카로움', light: '경량', sturdy: '견고', counter: '반격', kibo: '기보 이탈', bind: '속박', undying: '불굴' };
+const TRAIT_NAME: Record<TraitId, string> = { sticky: '점착', sharp: '날카로움', light: '경량', sturdy: '견고', counter: '반격', kibo: '기보 이탈', bind: '속박', undying: '불굴', static: '정전기' };
 
 export type ModOpt = { e: ModEff; label: string; ok: boolean; why?: string };
 /** 이 장비에 이 재료로 할 수 있는 개조 (상한을 넘는 것은 ok=false와 이유) */

@@ -18,6 +18,7 @@ import { DIFFS } from '../core/difficulty';
 import { deltaChip, gearIcon, invGrid, itemHead, matIcon, statsView } from './forge';
 import { loreText } from './lore';
 import { eggShopBought } from '../game/eggs';
+import { trainingView } from '../game/training';
 
 const BASIC: MatId[] = ['gel', 'tooth', 'wing', 'moss', 'thorn', 'fiber'];
 
@@ -234,6 +235,7 @@ export function openInn(onChange: () => void, campfire = false) {
       h('div', { class: 'row gap' }, rest, dep),
       h('div', { class: 'sub' }, '재료 변성 (같은 재료 4개 + 10G → 희귀 재료 1개, 실패하면 1개만 돌려받음)'),
       trans.children.length ? trans : h('p', { class: 'muted small' }, '같은 기본 재료가 4개 이상 있으면 변성할 수 있다.'),
+      ...(campfire ? [] : [h('div', { class: 'sub' }, '동료 훈련 (금화 + 동료가 좋아하는 재료, 세 단계)'), trainingView(render)]),
       h('div', { class: 'sub' }, `가방 (${bagN}개, 쓰러지면 일부 잃음)`),
       invGrid(bagItems),
       h('div', { class: 'sub' }, `창고 (${storeItems.reduce((a, b) => a + b.n, 0)}개, 안전)`),

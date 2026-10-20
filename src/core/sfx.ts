@@ -53,7 +53,7 @@ function noise(dur: number, vol = 0.3, hp = 800, delay = 0) {
   src.start(t);
 }
 
-export type Sfx = 'step' | 'hit' | 'hurt' | 'shot' | 'hammer' | 'perfect' | 'win' | 'lose' | 'ach' | 'coin' | 'event' | 'travel' | 'ability' | 'boss' | 'kill' | 'promo' | 'fall' | 'elite' | 'stance' | 'counter';
+export type Sfx = 'step' | 'hit' | 'hurt' | 'shot' | 'hammer' | 'perfect' | 'win' | 'lose' | 'ach' | 'coin' | 'event' | 'travel' | 'ability' | 'boss' | 'kill' | 'promo' | 'fall' | 'elite' | 'stance' | 'counter' | 'zap';
 
 export function sfx(name: Sfx) {
   if (fx.instant) return; // 시뮬레이션 중엔 조용히
@@ -83,6 +83,8 @@ export function sfx(name: Sfx) {
     case 'stance': return tone(1500, 0.09, 'triangle', 0.08, 1900);
     // 반격: 날카롭게 맞받아치는 소리
     case 'counter': noise(0.06, 0.3, 3000); return tone(700, 0.14, 'square', 0.12, 1400);
+    // 정전기: 지지직 하고 튀는 소리
+    case 'zap': noise(0.12, 0.25, 4000); tone(1800, 0.05, 'square', 0.08, 600); return tone(2400, 0.06, 'square', 0.07, 900, 0.06);
     case 'boss': tone(80, 0.8, 'sawtooth', 0.25, 60); return noise(0.6, 0.15, 100);
   }
 }

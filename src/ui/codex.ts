@@ -14,6 +14,21 @@ import { clearCoach, h, modal, patternGrid } from './dom';
 import { matIcon, statsView } from './forge';
 import { BASE_LIST, FAM_NAME } from '../data/gear';
 import { bossRecs } from '../game/record';
+import { AREAS, AreaId, FIXED_ENCS } from '../data/areas';
+
+/** 이 몹이 나오는 곳 (도감 힌트): 가 본 지역은 이름, 아직이면 '??? (n지역)'. 갈라지거나 불려 나오는 몹은 그 부모를 알려 준다 */
+export function mobWhere(m: MobId): string {
+  const places: string[] = [];
+  for (const [id, a] of Object.entries(AREAS) as [AreaId, (typeof AREAS)[AreaId]][]) {
+    const here = a.mobs.some((f) => FIXED_ENCS[f.enc]?.enemies.some((e) => e.m === m) && !f.enc.startsWith('trial'))
+      || !!a.random?.table.some((t) => t.party.some((p) => p.includes(m)));
+    if (here) places.push(G.flags[`v_${id}`] ? a.name : `??? (${a.region || '?'}지역)`);
+  }
+  if (m === 'rabbit') places.push(G.flags.v_tundra ? '얼어붙은 파일·빙하 (드물게)' : '??? (3지역, 드물게)');
+  const parents = (Object.keys(MOBS) as MobId[]).filter((p) => MOBS[p].split === m || (MOBS[p].tags?.includes('summoner') && (MOBS[p].summon ?? 'skeleton') === m) || (m === 'slimelet' && p === 'slime'));
+  for (const p of parents) places.push(G.dex[p] || G.flags[`seen_${p}`] ? `${MOBS[p].name}에게서` : '다른 몹에게서');
+  return [...new Set(places)].join(' · ');
+}
 
 /** 도감 순서: 데이터 순서(지역별). 딸려 나오는 작은 몹은 뺀다 (예전엔 2지역까지만 적혀 있어 3·4지역·새 몹이 도감에 없었다) */
 const MINIONS = ['slimelet', 'strawpawn', 'echo', 'inkdrop'];
@@ -159,7 +174,8 @@ export function mobCard(m: MobId, extra = ''): HTMLElement {
   const seen = kills > 0 || !!G.flags[`seen_${m}`];
   const card = h('div', { class: `cx-card ${kills ? '' : 'dim'}` }, mobPic(m, seen));
   if (!seen && !extra) {
-    card.append(h('div', {}, h('b', {}, '???'), h('p', { class: 'small muted' }, '아직 만나지 못했다.')));
+    const w = mobWhere(m);
+    card.append(h('div', {}, h('b', {}, '???'), h('p', { class: 'small muted' }, '아직 만나지 못했다.'), w ? h('p', { class: 'small muted' }, `📍 소문: ${w}`) : null));
     return card;
   }
   const drops = d.drops.map(([id, n]) => `${MATS[id].name}×${n}`).join(', ');
@@ -174,6 +190,7 @@ export function mobCard(m: MobId, extra = ''): HTMLElement {
     h('p', { class: 'small' }, d.desc),
     kills ? h('p', { class: 'small muted' }, `재료: ${drops || '없음'}${d.rare ? ` · 드물게 ${MATS[d.rare[0]].name}` : ''}`) : h('p', { class: 'small muted' }, '쓰러뜨리면 재료 정보를 알 수 있다.'),
     gearLine,
+    (() => { const w = mobWhere(m); return w ? h('p', { class: 'small muted' }, `📍 나오는 곳: ${w}`) : null; })(),
     loreBox(m, kills),
   ), mobGrid(m));
   return card;

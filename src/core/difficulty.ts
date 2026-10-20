@@ -47,6 +47,8 @@ export interface DiffDef {
   retaliate: number;
   /** 일반 전투 시작 때 적에게 맞춰 깔아 주는 지형 칸 수 (멀리 치는 적 = 수풀, 붙어 치는 적 = 고지) */
   terrain: number;
+  /** 증원: 일반 전투에서 at턴부터 every턴마다 가장자리로 적 하나가 들어온다 (한 턴 전에 예고, 최대 max번). null = 없음 */
+  reinf: { at: number; every: number; max: number } | null;
 }
 
 // 전투 세기(2026-10-04 사용자 결정): 이름·보상·편의는 그대로 두고, 전투 값만 각 이름이 한 칸 위 단계 쪽으로 약 80% 옮겨 갔다.
@@ -56,31 +58,31 @@ export const DIFFS: Record<Diff, DiffDef> = {
     name: '입문',
     shown: ['적이 약하고, 쓰러져도 재료를 잃지 않아요', '이야기를 편하게 즐기고 싶은 분께'],
     gold: 0.5, rare: 0.45, extra: 0, drop: 0.9, loss: 0, refund: 1, willEachBattle: true, bossHp: -2, mobHp: -1, fleeCost: 0, shiny: 0.05,
-    chase: false, breath: 2, ambush: 0.01, blur: 0.02, clock: 0, aware: 0.06, haste: 0.02, retaliate: 0.02, terrain: 0,
+    chase: false, breath: 2, ambush: 0.01, blur: 0.02, clock: 0, aware: 0.06, haste: 0.02, retaliate: 0.02, terrain: 0, reinf: null,
   },
   easy: {
     name: '쉬움',
     shown: ['쓰러져도 가방 재료를 조금만 잃어요', '전투가 아직 낯설다면 여기서'],
     gold: 0.6, rare: 0.5, extra: 0, drop: 0.85, loss: 0.25, refund: 1, willEachBattle: true, bossHp: 0, mobHp: 0, fleeCost: 0, shiny: 0.05,
-    chase: true, breath: 3, ambush: 0.05, blur: 0.11, clock: 38, aware: 0.38, haste: 0.08, retaliate: 0.08, terrain: 1,
+    chase: true, breath: 3, ambush: 0.05, blur: 0.11, clock: 38, aware: 0.38, haste: 0.08, retaliate: 0.08, terrain: 1, reinf: { at: 12, every: 12, max: 1 },
   },
   normal: {
     name: '보통',
     shown: ['쓰러지면 가방 재료를 절반 잃어요', '처음 하는 분께 추천해요'],
     gold: 1, rare: 0.8, extra: 0, drop: 0.8, loss: 0.5, refund: 0.5, willEachBattle: false, bossHp: 1, mobHp: 0, fleeCost: 1, shiny: 0.07,
-    chase: true, breath: 3, ambush: 0.09, blur: 0.25, clock: 24, aware: 0.65, haste: 0.13, retaliate: 0.15, terrain: 2,
+    chase: true, breath: 3, ambush: 0.09, blur: 0.25, clock: 24, aware: 0.65, haste: 0.13, retaliate: 0.15, terrain: 2, reinf: { at: 10, every: 10, max: 1 },
   },
   hard: {
     name: '어려움',
     shown: ['쓰러지면 가방 재료를 모두 잃어요', '예고 없이 덮치는 적이 있어요', '보상이 훨씬 많아요'],
     gold: 1.5, rare: 1.6, extra: 0.22, drop: 0.8, loss: 1, refund: 0, willEachBattle: false, bossHp: 2, mobHp: 1, fleeCost: 1, shiny: 0.1,
-    chase: true, breath: 4, ambush: 0.15, blur: 0.4, clock: 18, aware: 0.88, haste: 0.18, retaliate: 0.22, terrain: 3,
+    chase: true, breath: 4, ambush: 0.15, blur: 0.4, clock: 18, aware: 0.88, haste: 0.18, retaliate: 0.22, terrain: 3, reinf: { at: 9, every: 9, max: 1 },
   },
   master: {
     name: '그랜드마스터',
     shown: ['적이 내 움직임을 읽어요', '전투를 오래 끌면 적이 사나워져요', '보상이 가장 많아요'],
     gold: 2, rare: 2, extra: 0.32, drop: 0.8, loss: 1, refund: 0, willEachBattle: false, bossHp: 4, mobHp: 2, fleeCost: 2, shiny: 0.12,
-    chase: true, breath: 6, ambush: 0.26, blur: 0.65, clock: 12, aware: 0.98, haste: 0.29, retaliate: 0.35, terrain: 4,
+    chase: true, breath: 6, ambush: 0.26, blur: 0.65, clock: 12, aware: 0.98, haste: 0.29, retaliate: 0.35, terrain: 4, reinf: { at: 7, every: 6, max: 2 },
   },
 };
 

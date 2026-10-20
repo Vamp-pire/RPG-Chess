@@ -1,7 +1,7 @@
 ﻿import { ALFIL, DIAG, JUMP2, KING, KNIGHT, ORTH, RING2, RING3, Vec } from '../core/geom';
 import { RuleKind } from '../core/rules';
 
-export type TraitId = 'sticky' | 'sharp' | 'light' | 'sturdy' | 'counter' | 'kibo' | 'bind' | 'undying';
+export type TraitId = 'sticky' | 'sharp' | 'light' | 'sturdy' | 'counter' | 'kibo' | 'bind' | 'undying' | 'static';
 export type AbilityId = 'push' | 'hop' | 'swap' | 'terrain' | 'trap' | 'pull' | 'blink';
 export type MatId =
   | 'gel' | 'tooth' | 'wing' | 'moss' | 'thorn' | 'fiber'
@@ -65,7 +65,7 @@ export const MATS: Record<MatId, MatDef> = {
   // ---- 1지역 새 몹 (장비 개편) ----
   leg: { id: 'leg', name: '메뚜기 다리', short: '다리', desc: '튕겨 오르는 힘이 남아 있다. 들판의 메뚜기는 앞에 놓인 말을 디딤돌 삼아 넘는다.', color: '#9cc25a', frag: { kind: 'hop', dirs: KING, range: 3 }, trait: 'light', price: 6 },
   claw: { id: 'claw', name: '두더지 발톱', short: '발톱', desc: '흙을 파던 두툼한 발톱. 두더지는 칸 밑으로 숨었다가 엉뚱한 칸에서 튀어나온다.', color: '#a88a6a', frag: { kind: 'step', dirs: ORTH, range: 1 }, trait: 'counter', price: 6 },
-  feather: { id: 'feather', name: '까마귀 깃', short: '깃', desc: '검고 윤이 난다. 까마귀는 대각선으로 두 칸씩 뛰며 반짝이는 것을 물어 간다.', color: '#4a4a5e', frag: { kind: 'leap', dirs: ALFIL, range: 1 }, trait: 'light', price: 6 },
+  feather: { id: 'feather', name: '까마귀 깃', short: '깃', desc: '검고 윤이 난다. 까마귀는 대각선으로 두 칸씩 뛰며 반짝이는 것을 물어 간다. 문지르면 찌릿하다.', color: '#4a4a5e', frag: { kind: 'leap', dirs: ALFIL, range: 1 }, trait: 'static', price: 6 },
   // ---- 2~4지역 새 몹 (장비 개편 2차) ----
   scale: { id: 'scale', name: '뱀 비늘', short: '비늘', desc: '마디마다 L자로 꺾인다. 늪 뱀은 나이트의 길을 쉬지 않고 두 번 이어 달린다.', color: '#6a8a4a', frag: { kind: 'slide', dirs: KNIGHT, range: 2 }, trait: 'light', price: 9 },
   shell: { id: 'shell', name: '등딱지 조각', short: '등딱지', desc: '곧게 날아오는 것은 비껴 낸다. 늪 거북은 대각선에서 오는 것에만 약하다.', color: '#7a8a5a', trait: 'sturdy', price: 9 },
@@ -96,6 +96,7 @@ export const TRAITS: Record<TraitId, { name: string; desc: (lv: number) => strin
   kibo: { name: '기보 이탈', desc: (lv) => `능력 재사용 대기 -${lv}.` },
   bind: { name: '속박', desc: (lv) => `전투마다 ${lv}번, 공격한 적이 살아남으면 다음 행동을 못 한다.` },
   undying: { name: '불굴', desc: () => '전투마다 한 번, 쓰러질 피해를 받아도 1로 버틴다.' },
+  static: { name: '정전기', desc: (lv) => `공격할 때마다 충전. ${lv >= 3 ? 2 : 3}번째 공격이 맞힌 적 곁의 적 ${Math.min(3, lv + 1)}마리까지 번개로 1 피해.` },
 };
 
 export type SpecialSlot = 'engrave' | 'relic';

@@ -13,6 +13,7 @@ import { clearCoach, coachNow, cutin, h, toast, helpFold } from '../ui/dom';
 import { DIFFS } from '../core/difficulty';
 import { sfx } from '../core/sfx';
 import { duck } from '../core/bgm';
+import { companionRules, trainHp, trainedPassive } from './training';
 import { perk } from './rewards';
 import { runRule } from './runrules';
 import { bossFell } from './throne';
@@ -196,6 +197,7 @@ export class Battle {
     this.bind = this.lo.traits.bind ?? 0;
     this.undying = this.lo.sets.includes('bone') ? 2 : this.lo.traits.undying ? 1 : 0;
     this.counter = this.lo.traits.counter ? this.lo.traits.counter + 1 : 0;
+    this.staticLv = this.lo.traits.static ?? 0;
     this.cds = this.lo.abilities.map(() => 0);
     // 용사의 의지: 쉬움은 전투마다, 그 밖에는 쉬어야 다시 차오른다
     this.will = !DIFFS[G.diff].willEachBattle && !!G.flags.will_used;
@@ -245,7 +247,7 @@ export class Battle {
       if (!spot) break;
       const d = COMPANIONS[c];
       const up = !!G.flags[`cup_${c}`];
-      const chp = HP_MUL * (d.hp + (perk('ally') ? 1 : 0) + (up ? 2 : 0));
+      const chp = HP_MUL * (d.hp + (perk('ally') ? 1 : 0) + (up ? 2 : 0) + trainHp(c));
       this.allies.push({ uid: UID++, mob: null, ally: c, x: spot[0], y: spot[1], hp: chp, maxHp: chp, atk: up ? 2 : 1, intent: null, stun: 0, ent: mkEnt(`c_${c}`, `p:${d.img}`, spot[0], spot[1], { hp: chp, maxHp: chp, glow: 'rgba(90,150,230,0.25)' }) });
     }
     // 세트 효과: 점액(시작 체력 +1), 서리(가장 가까운 적을 얼린다)
@@ -420,7 +422,7 @@ export class Battle {
   }
 
   private rulesOf(a: BUnit): MoveRule[] {
-    if (a.ally !== 'hero') return COMPANIONS[a.ally as CompanionId].rules;
+    if (a.ally !== 'hero') return companionRules(a.ally as CompanionId);
     // 총은 재장전 중엔 쏠 수 없다
     return this.gunReload > 0 ? this.lo.rules.filter((r) => !r.gun) : this.lo.rules;
   }
@@ -527,6 +529,7 @@ export class Battle {
     for (const [x, y] of this.frost) marks.push({ x, y, kind: 'frost' });
     if (this.warpTo) marks.push({ x: this.warpTo[0], y: this.warpTo[1], kind: 'warp' });
     for (const [x, y] of this.summonAt) marks.push({ x, y, kind: 'summon' });
+    if (this.reinfAt) marks.push({ x: this.reinfAt[0], y: this.reinfAt[1], kind: 'summon', label: '증원' });
     for (const l of this.lines) for (const [x, y] of l) marks.push({ x, y, kind: 'line' });
     for (const k of this.traps.keys()) {
       const [x, y] = k.split(',').map(Number);
@@ -719,6 +722,7 @@ export class Battle {
     }
     if (this.cur.hp <= 0) this.active = 0;
     this.computeIntents();
+    this.planReinforce();
     this.busy = false;
     fx.turnAt = fx.time; // 판 테두리 반짝 (내 차례)
     this.refresh();
@@ -838,9 +842,11 @@ export class Battle {
       const shotDmg = 3 + (perk('shot') ? 1 : 0);
       await this.shootFx(a, u, () => { shotDead = this.dmgEnemy(u, this.shellCut(a, u, shotDmg), 1); }); // 사격은 멀리서 치는 것이라 1배
       this.gunReload = 3; // 이번 턴 끝에 1 줄어, 다음 두 턴 동안 못 쏜다
+      const spot: Vec = [u.x, u.y];
       if (shotDead) await this.kill(u, false, 'shot');
       else if (stance) await this.retaliate(u, a);
       else await this.bossAnswer(u, a);
+      await this.staticChain(spot, u);
       await this.checkPhase();
       return;
     }
@@ -859,6 +865,11 @@ export class Battle {
       fx.text(a.x + 0.5, a.y - 0.35, '정조준', '#ffd48a');
     }
     if (isHero) this.heroMoved = false;
+    // 굳은 방진(훈련 3단계): 주인공 곁의 폰 병사는 공격 +1
+    if (a.ally === 'soldier' && trainedPassive('soldier') && cheb([a.x, a.y], [this.hero.x, this.hero.y]) <= 1) {
+      dmg++;
+      fx.text(a.x + 0.5, a.y - 0.2, '굳은 방진', '#cfe0ff');
+    }
     // 고지에서 내려치면 +1
     if (this.tileAt(a.x, a.y) === 'high') {
       dmg++;
@@ -872,6 +883,7 @@ export class Battle {
     const melee = cheb([a.x, a.y], [u.x, u.y]) <= 1;
     if (!melee) fx.text(u.x + 0.5, u.y - 0.45, '먼 공격', '#cfd8e8');
     await lunge(a.ent, [u.x, u.y], () => { sfx('hit'); dead = this.dmgEnemy(u, this.shellCut(a, u, dmg * (melee ? 2 : 1)), 1, melee); });
+    const spot: Vec = [u.x, u.y];
     if (dead) {
       const to: Vec = [u.x, u.y];
       // 폰이 잡는 방식(바로 아래 대각선 칸에서의 일격, 주인공·동료 모두)이었나 — 숨은 엔딩 단서용
@@ -890,8 +902,11 @@ export class Battle {
     } else if (u.hp > 0 && ((isHero && this.bind > 0) || a.ally === 'ghostknight')) {
       if (isHero) this.bind--;
       u.intent = { t: 'idle', why: '묶임' };
+      // 깊은 망령(훈련 3단계): 한 번 더 못 움직인다
+      if (a.ally === 'ghostknight' && trainedPassive('ghostknight')) u.stun = Math.max(u.stun ?? 0, 1);
       fx.text(u.x + 0.5, u.y - 0.1, '속박', '#cfe0ff');
     }
+    if (isHero) await this.staticChain(spot, u);
     // 고유 효과 '자리 바꾸기': 친 적이 살아남으면 자리를 바꾼다
     if (!dead && isHero && u.hp > 0 && this.lo.uniq.includes('swap') && !this.shielded(u)) {
       const ap: Vec = [a.x, a.y];
@@ -909,6 +924,39 @@ export class Battle {
    * 주인공이 친 것과 같은 행마(같은 방향·거리)로 친다: 붙어서 맞았으면 붙어서(2배), 멀리서 맞았으면 그 거리에서(1배).
    * 확률에 실패해도 태세는 풀린다. 반격했으면 true.
    */
+  /** 정전기: 주인공이 공격할 때마다 충전, 다 차면 맞힌 칸 곁의 적들에게 번개가 옮겨 간다 (1 피해씩) */
+  staticLv = 0;
+  charge = 0;
+  get chargeNeed() { return this.staticLv >= 3 ? 2 : 3; }
+  private async staticChain(at: Vec, hit: BUnit) {
+    if (!this.staticLv || this.over) return;
+    this.charge++;
+    if (this.charge < this.chargeNeed) {
+      fx.text(this.hero.x + 0.5, this.hero.y - 0.35, `⚡ ${this.charge}/${this.chargeNeed}`, '#9be7ff', false, 900, 0.2);
+      return;
+    }
+    const near = this.enemies().filter((e) => e !== hit && !e.under && cheb([e.x, e.y], at) <= 1)
+      .slice(0, Math.min(3, this.staticLv + 1));
+    if (!near.length) {
+      // 곁에 적이 없으면 충전은 남겨 둔다 (뭉친 적을 칠 때까지)
+      this.charge = this.chargeNeed - 1;
+      fx.text(at[0] + 0.5, at[1] - 0.35, '⚡ 옮겨 갈 적이 없다', '#9be7ff', false, 900, 0.17);
+      return;
+    }
+    this.charge = 0;
+    sfx('zap');
+    fx.text(at[0] + 0.5, at[1] - 0.5, '정전기!', '#9be7ff', true);
+    for (const e of near) {
+      // 번개 줄기: 두 칸 사이를 불꽃으로 잇는다
+      for (let i = 0; i <= 6; i++) {
+        const t = i / 6;
+        fx.parts.push({ x: at[0] + 0.5 + (e.x - at[0]) * t + (Math.random() - 0.5) * 0.18, y: at[1] + 0.5 + (e.y - at[1]) * t + (Math.random() - 0.5) * 0.18, vx: 0, vy: 0, life: 260, max: 260, size: 0.09, color: '#cff4ff', grav: 0, shape: 'spark' });
+      }
+    }
+    await fx.wait(120);
+    for (const e of near) if (e.hp > 0 && this.dmgEnemy(e, 1, 1)) await this.kill(e, false, 'static');
+  }
+
   private async retaliate(u: BUnit, a: BUnit): Promise<boolean> {
     u.retaliating = false;
     u.ent.glow = u.shiny ? 'rgba(255,214,90,0.55)' : undefined;
@@ -929,7 +977,7 @@ export class Battle {
   }
 
   private async heal(t: BUnit) {
-    const n = Math.min(2 * HP_MUL, t.maxHp - t.hp);
+    const n = Math.min((2 + (trainedPassive('priest') ? 1 : 0)) * HP_MUL, t.maxHp - t.hp);
     t.hp += n;
     t.ent.hp = t.hp;
     if (t.ally === 'hero') G.hp = t.hp;
@@ -1364,8 +1412,21 @@ export class Battle {
     return best;
   }
 
+  /** 주인공이 다음에 갈 수 있는 칸 (적이 길목을 막을 때 쓴다) */
+  private escapes: Vec[] = [];
+  /** 칸 s에 선 적 u가 주인공의 도망칠 칸을 몇 개나 노리는가 (최대 3) */
+  private blockCount(u: BUnit, s: Vec): number {
+    if (!this.escapes.length) return 0;
+    const base = this.gridFor(u);
+    const esc = new Set(this.escapes.map(([x, y]) => key(x, y)));
+    const g: Grid = { ...base, occ: (x, y) => (esc.has(key(x, y)) && !eq([x, y], s) ? 'enemy' : x === u.x && y === u.y ? null : base.occ(x, y)) };
+    return Math.min(3, genTargets(this.mobRules(u, 'attack'), s, g).attacks.filter(([x, y]) => esc.has(key(x, y))).length);
+  }
+
   computeIntents() {
     const reserved = new Set<string>();
+    const hr = this.hero;
+    this.escapes = hr.hp > 0 ? genTargets(this.rulesOf(hr), [hr.x, hr.y], this.allyGrid(hr)).moves.filter(([x, y]) => this.floor(x, y)) : [];
     for (const u of this.enemies()) if (u.mob === 'smudge') {
       const next = u.form === undefined ? rand(3) : (u.form + 1 + rand(2)) % 3;
       if (u.form !== undefined && next !== u.form) fx.text(u.x + 0.5, u.y - 0.3, `→ ${SMUDGE_FORMS[next].name}`, '#a8a8d8');
@@ -1612,7 +1673,8 @@ export class Battle {
         // 주인공의 행마를 일부 읽는다 (난이도별 확률): 칠 수 없는 칸에서 주인공 사정거리에 서는 것을 피하고,
         // 칠 수 있는 칸이 여럿이면 주인공이 되받아칠 수 없는 쪽을 고른다. 길 찾기 거리보다는 가볍게 (멈춰 서지 않게)
         const aware = Math.random() < DIFFS[G.diff].aware;
-        return this.decideMove(u, reserved, (s) => (this.hitTarget(u, s) ? (aware && this.heroCanHit(u, s) ? 3 : 0) : 10 + near(s) + (aware && this.heroCanHit(u, s) ? 600 : 0)));
+        // 길목 막기: 행마를 읽는 적은 다가가는 김에 주인공이 피할 칸을 노리는 자리를 고른다
+        return this.decideMove(u, reserved, (s) => (this.hitTarget(u, s) ? (aware && this.heroCanHit(u, s) ? 3 : 0) : 10 + near(s) + (aware && this.heroCanHit(u, s) ? 600 : 0) - (aware ? 2 * this.blockCount(u, s) : 0)));
       }
     }
   }
@@ -1849,6 +1911,46 @@ export class Battle {
       }
     }
     await this.bossEvents();
+    await this.reinforce();
+  }
+
+  /** 증원: 무작위 조우가 길어지면 판 가장자리로 같은 무리의 몹이 하나 들어온다. 한 턴 전에 그 칸을 예고한다 */
+  reinfAt: Vec | null = null;
+  private reinfN = 0;
+  private planReinforce() {
+    this.reinfAt = null;
+    const r = DIFFS[G.diff].reinf;
+    if (!r || !this.enc.wild || this.enc.daily || this.enc.guest || this.reinfN >= r.max || this.over) return;
+    if (Number(G.flags.hintBattles ?? 0) <= HINT_BATTLES) return; // 처음 몇 전투는 조용히
+    // 다음 적 턴에 들어온다: 지금 턴 번호가 at, at+every, … 일 때 예고
+    if (this.turn < r.at || (this.turn - r.at) % r.every !== 0) return;
+    const hr = this.hero;
+    const edge: Vec[] = [];
+    for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) {
+      if (x !== 0 && y !== 0 && x !== this.w - 1 && y !== this.h - 1) continue;
+      if (this.free(x, y) && this.tiles[y][x] !== 'water' && cheb([x, y], [hr.x, hr.y]) >= 3) edge.push([x, y]);
+    }
+    if (!edge.length) return;
+    this.reinfAt = pick(edge);
+    fx.text(this.reinfAt[0] + 0.5, this.reinfAt[1] + 0.2, '증원 예고', '#ffb27a', false, 1600, 0.2);
+  }
+  private async reinforce() {
+    const at = this.reinfAt;
+    this.reinfAt = null;
+    if (!at || this.over || !this.enemies().length) return;
+    const spot = this.free(at[0], at[1]) ? at : this.nearFree(at);
+    if (!spot) return;
+    // 처음 무리에 있던 일반 몹 가운데 하나 (엘리트·보스는 오지 않는다)
+    const pool = this.enc.enemies.map((e) => e.m).filter((m) => !ELITE.has(m) && !['boss', 'queen', 'static', 'turret'].includes(MOBS[m].ai));
+    if (!pool.length) return;
+    this.reinfN++;
+    const m = pick(pool);
+    const p = this.addEnemy(m, spot[0], spot[1], 0);
+    this.syncEnts();
+    sfx('elite');
+    fx.text(spot[0] + 0.5, spot[1], '증원!', '#ffb27a', true);
+    fx.burst(spot[0] + 0.5, spot[1] + 0.5, MOBS[m].color, 10, { speed: 2 });
+    await popIn(p.ent);
   }
 
   /** 세 턴 동안 건드리지 않은 일반 적은 다음 아군 차례 한 번 동안 반격 태세가 된다 (발동 확률은 난이도). */
@@ -2223,6 +2325,7 @@ export class Battle {
           this.undying ? h('span', { class: 'chip' }, ...termify('불굴')) : null,
           this.hasGun ? h('span', { class: `chip ${this.gunReload ? 'warn' : 'gun'}` }, this.gunReload ? `총 재장전 ${this.gunReload}턴` : '총 장전됨') : null,
           this.counter ? h('span', { class: 'chip' }, ...termify(`반격 ${this.counter}`)) : null,
+          this.staticLv ? h('span', { class: 'chip' }, ...termify(`정전기 ⚡${this.charge}/${this.chargeNeed}`)) : null,
           G.piece === 'pawn' ? h('span', { class: `chip ${this.will ? 'off' : ''}`, title: this.will ? (DIFFS[G.diff].willEachBattle ? '이번 전투에서 이미 썼어요' : '여관이나 모닥불에서 쉬면 다시 차올라요') : '쓰러질 피해를 한 번 버텨요' }, ...termify(this.will ? '용사의 의지 (소진)' : '용사의 의지')) : null,
           hr.rooted ? h('span', { class: 'chip warn' }, '묶임: 이동 불가') : null,
         ),

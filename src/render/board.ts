@@ -629,7 +629,7 @@ export class Renderer {
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillStyle = warp ? '#e6d4ff' : '#ffe7a3';
-          ctx.fillText(warp ? '무르기' : '소환', cx, py + ts * 0.82);
+          ctx.fillText(warp ? '무르기' : m.label ?? '소환', cx, py + ts * 0.82);
           ctx.restore();
           break;
         }

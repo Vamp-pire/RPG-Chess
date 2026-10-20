@@ -421,6 +421,8 @@ export interface EncDef {
   hold?: number;
   /** 야생 조우에 붙는 작은 지형 세트 이름과 설명 */
   terrainName?: string;
+  /** 무작위 조우 (증원 같은 일반 전투 장치가 붙는다) */
+  wild?: boolean;
   terrainHint?: string;
   /** 끝없는 탑: 높은 층일수록 몹(부하 제외)에 더하는 체력 */
   hpBonus?: number;
@@ -530,7 +532,7 @@ export function randomEnc(types: MobId[], biome: Biome = 'meadow'): EncDef {
   const player: Vec = [Math.floor(size / 2), size - 1];
   const terrain = terrainSet(types, biome, size, enemies, player);
   const name = { meadow: '들판의 조우', forest: '숲의 조우', hills: '언덕의 조우', marsh: '늪의 조우', ruins: '폐허의 조우', tundra: '설원의 조우', glacier: '빙하의 조우', bastion: '요새의 조우', fold: '접힌 페이지', inkwell: '잉크 샘' }[biome as string] ?? '조우';
-  return { name, w: size, h: size, enemies, player, ...terrain };
+  return { name, w: size, h: size, enemies, player, wild: true, ...terrain };
 }
 
 export const pickParty = (t: { party: MobId[][] }) => pick(t.party);

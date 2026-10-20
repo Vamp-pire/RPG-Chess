@@ -15,6 +15,7 @@ export const GLOSSARY: Record<string, string> = {
   반격: T('counter'),
   속박: T('bind'),
   불굴: T('undying'),
+  정전기: T('static'),
   '기보 이탈': T('kibo'),
   방진: '폰 병사 바로 곁에 있으면 받는 피해가 1 줄어요.',
   '반격 태세': '세 턴 동안 맞지 않은 적. 이 적을 쳤는데 살아남으면 같은 방식으로 되받아칠 수 있어요.',
