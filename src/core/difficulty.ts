@@ -62,27 +62,27 @@ export const DIFFS: Record<Diff, DiffDef> = {
   },
   easy: {
     name: '쉬움',
-    shown: ['쓰러져도 가방 재료를 조금만 잃어요', '전투가 아직 낯설다면 여기서'],
+    shown: ['쓰러져도 가방 재료를 조금만 잃어요', '처음 하는 분께 추천해요'],
     gold: 0.6, rare: 0.5, extra: 0, drop: 0.85, loss: 0.25, refund: 1, willEachBattle: true, bossHp: 0, mobHp: 0, fleeCost: 0, shiny: 0.05,
     chase: true, breath: 3, ambush: 0.05, blur: 0.11, clock: 38, aware: 0.38, haste: 0.08, retaliate: 0.08, terrain: 1, reinf: { at: 12, every: 12, max: 1 },
   },
   normal: {
     name: '보통',
-    shown: ['쓰러지면 가방 재료를 절반 잃어요', '처음 하는 분께 추천해요'],
+    shown: ['쓰러지면 가방 재료를 절반 잃어요', '적이 수를 읽고, 싸움이 길면 증원이 와요'],
     gold: 1, rare: 0.8, extra: 0, drop: 0.8, loss: 0.5, refund: 0.5, willEachBattle: false, bossHp: 1, mobHp: 0, fleeCost: 1, shiny: 0.07,
-    chase: true, breath: 3, ambush: 0.09, blur: 0.25, clock: 24, aware: 0.65, haste: 0.13, retaliate: 0.15, terrain: 2, reinf: { at: 10, every: 10, max: 1 },
+    chase: true, breath: 5, ambush: 0.09, blur: 0.25, clock: 14, aware: 0.95, haste: 0.25, retaliate: 0.3, terrain: 2, reinf: { at: 4, every: 3, max: 4 },
   },
   hard: {
     name: '어려움',
     shown: ['쓰러지면 가방 재료를 모두 잃어요', '예고 없이 덮치는 적이 있어요', '보상이 훨씬 많아요'],
     gold: 1.5, rare: 1.6, extra: 0.22, drop: 0.8, loss: 1, refund: 0, willEachBattle: false, bossHp: 2, mobHp: 1, fleeCost: 1, shiny: 0.1,
-    chase: true, breath: 4, ambush: 0.15, blur: 0.4, clock: 18, aware: 0.88, haste: 0.18, retaliate: 0.22, terrain: 3, reinf: { at: 9, every: 9, max: 1 },
+    chase: true, breath: 6, ambush: 0.15, blur: 0.4, clock: 12, aware: 0.98, haste: 0.29, retaliate: 0.35, terrain: 3, reinf: { at: 3, every: 3, max: 5 },
   },
   master: {
     name: '그랜드마스터',
     shown: ['적이 내 움직임을 읽어요', '전투를 오래 끌면 적이 사나워져요', '보상이 가장 많아요'],
     gold: 2, rare: 2, extra: 0.32, drop: 0.8, loss: 1, refund: 0, willEachBattle: false, bossHp: 4, mobHp: 2, fleeCost: 2, shiny: 0.12,
-    chase: true, breath: 6, ambush: 0.26, blur: 0.65, clock: 12, aware: 0.98, haste: 0.29, retaliate: 0.35, terrain: 4, reinf: { at: 7, every: 6, max: 2 },
+    chase: true, breath: 7, ambush: 0.26, blur: 0.65, clock: 10, aware: 0.99, haste: 0.33, retaliate: 0.4, terrain: 4, reinf: { at: 3, every: 2, max: 6 },
   },
 };
 
