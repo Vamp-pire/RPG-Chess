@@ -66,7 +66,7 @@ boss 밀짚왕 [중반 장비] : 100/0/18  | 85/15/20 | 100/0/17
 ## 임시로 둔 것 (교체 예정)
 - 몹·재료·오브젝트 이미지: 코드로 그린 도형 → Canva로 제작·검토 후 교체
 - UI 스킨(`style.css`): 임시 → Claude Design으로 교체
-- 기본 기물은 사용자 원본 PNG (`youtube-chat-chess\piece-sets\pieces` = `D:\체스 기물 배경o,x\디스코드 배경X기물들`). `D:\chess-pieces-symmetric`은 변형본이라 쓰지 않음
+- 기본 기물은 사용자 원본 PNG (`youtube-chat-chess\piece-sets\pieces` = `D:\자료\체스이미지\체스 기물 배경o,x\디스코드 배경X기물들`). `D:\자료\체스이미지\chess-pieces-symmetric`은 변형본이라 쓰지 않음
 
 ## 개발 팁
 - 화면이 가려져 rAF가 멈추면 애니메이션이 멈춤 → 개발 모드 `window.pump(ms)`, `window.app/state/areas/sim`
